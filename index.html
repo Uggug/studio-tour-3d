@@ -35,6 +35,9 @@ button:hover{background:var(--chip)}
 button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 button.primary{background:var(--accent);color:var(--bg);font-weight:600}
 button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.dd{position:relative}
+#styles{position:absolute;top:calc(100% + 5px);left:-1px;display:grid;gap:2px;width:max-content;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:3px;z-index:7}
+#styles button{text-align:left}
 #card{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));width:min(430px,calc(100% - 32px));box-sizing:border-box;
   background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 16px;z-index:5;transition:opacity .35s ease;pointer-events:none}
 #card.off{opacity:0}
@@ -67,8 +70,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 <div class="bar">
   <div class="brand"><h1>Studio dentistico Mercanzin</h1><div>da EA1 · scala 1:50 · h 2,70 m ipotizzata</div></div>
   <div class="grp"><button id="bTour" class="primary">&#9654; Avvia tour</button><button id="bView" aria-pressed="false">Vista dall'alto</button></div>
-  <div class="grp" id="styles" role="group" aria-label="Stile"></div>
-  <div class="grp"><button id="bMute" aria-pressed="false" aria-label="Musica">&#9834; Musica</button><button id="bLead" aria-pressed="false">Piombature</button><button id="bSvc" aria-pressed="false">Impianti</button><button id="bCheck" aria-pressed="false">Verifica</button></div>
+  <div class="grp dd"><button id="bStyle" aria-haspopup="listbox" aria-expanded="false" aria-label="Stile"></button><div id="styles" role="listbox" hidden></div></div>
+  <div class="grp"><button id="bLead" aria-pressed="false">Piombature</button><button id="bSvc" aria-pressed="false">Impianti</button><button id="bCheck" aria-pressed="false">Verifica</button></div>
   <div class="hintrow"><span id="hint">Clicca nella scena, poi WASD e mouse per camminare</span></div>
 </div>
 <div id="card" class="off" aria-live="polite"><h2 id="cN"></h2><div class="sz" id="cS"></div><p id="cP"></p><div class="as" id="cA" hidden>Uso ipotizzato: non indicato in pianta</div></div>
@@ -98,7 +101,6 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 </script>
 <script type="module">
 import * as THREE from 'three';
-import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
@@ -195,7 +197,7 @@ function applyStyle(k){styleKey=k;const s=STYLES[k];texCache.splice(0).forEach(t
   M.metal.color.set(s.metal[0]);M.metal.metalness=s.metal[1];M.metal.roughness=s.metal[2];
   [['hall',1],['clin',2],['wet',3],['wood',4],['counter',5],['fabric',6],['rug',7]].forEach(([m,seed])=>{M[m].map=makeTex(s[m],seed);M[m].needsUpdate=true});
   M.art.forEach((m,i)=>{m.map=makeTex(['art',s.art],20+i,i);m.needsUpdate=true});
-  document.querySelectorAll('#styles button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.k===k)));
+  document.querySelectorAll('#styles button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.k===k)));$('bStyle').textContent=s.n+' \u25BE';
   renderer.shadowMap.needsUpdate=true}
 
 // ---------- builders ----------
@@ -384,19 +386,18 @@ plan.rotation.x=-Math.PI/2;plan.position.set(X(533.5),.004,Z(1000.1));plan.visib
 function hit(x,z,r){for(const c of CR){const nx=Math.max(c[0],Math.min(x,c[2])),nz=Math.max(c[1],Math.min(z,c[3]));if((x-nx)**2+(z-nz)**2<r*r)return true}
   for(const c of CCIR)if((x-c[0])**2+(z-c[1])**2<(r+c[2])**2)return true;return false}
 const me={x:X(240),z:Z(690),yaw:-Math.PI/2,pitch:0};
-const orbit=new OrbitControls(cam,renderer.domElement);orbit.enableDamping=true;orbit.maxPolarAngle=1.48;orbit.minDistance=1.2;orbit.maxDistance=45;orbit.enabled=false;
-orbit.zoomToCursor=true;orbit.screenSpacePanning=false;   // zoom goes to the pointer, so rotating afterwards turns around what you zoomed on
+const fly={p:V3(),yaw:0,pitch:0};                   // free camera of the top view: position and gaze, no pivot
 let mode='walk';const tw={t:1,p0:V3(),p1:V3(),q0:new THREE.Quaternion(),q1:new THREE.Quaternion(),done:null};
 const dollPos=()=>cam.aspect<1?V3(.01,25,6):V3(7.5,13.5,.01);
 function walkQuat(){return new THREE.Quaternion().setFromEuler(new THREE.Euler(me.pitch,me.yaw,0,'YXZ'))}
 function tween(p1,q1,done){tw.p0.copy(cam.position);tw.q0.copy(cam.quaternion);tw.p1.copy(p1);tw.q1.copy(q1);tw.t=0;tw.done=done}
-function setMode(m){if(m===mode&&m!=='tour')return;const from=mode;mode=m;orbit.enabled=false;document.exitPointerLock?.();
+function setMode(m){if(m===mode&&m!=='tour')return;const from=mode;mode=m;ptr.clear();document.exitPointerLock?.();
   $('bView').setAttribute('aria-pressed',String(m==='doll'));$('bView').textContent=m==='doll'?'Entra e cammina':'Vista dall’alto';
-  $('bTour').innerHTML=m==='tour'?'&#9632; Ferma tour':'&#9654; Avvia tour';$('stick').hidden=!(coarse&&m==='walk');
-  $('hint').textContent=m==='walk'?(coarse?'Joystick per muoverti, trascina per guardare':'Clicca nella scena, poi WASD e mouse per camminare. Esc per liberare il mouse'):m==='doll'?(coarse?'Un dito ruota, due dita zoom e spostamento, doppio tocco centra':'Trascina per ruotare · rotella: zoom sul puntatore · tasto destro o WASD: sposta · doppio clic: centra'):'Tour guidato in corso';
+  $('bTour').innerHTML=m==='tour'?'&#9632; Ferma tour':'&#9654; Avvia tour';$('stick').hidden=!(coarse&&m!=='tour');
+  $('hint').textContent=m==='tour'?'Tour guidato in corso':coarse?'Un dito: guarda intorno · due dita: avvicina e sposta · joystick: muoviti':m==='walk'?'Clicca nella scena, poi WASD e mouse per camminare. Esc per liberare il mouse':'Trascina: guarda intorno · rotella: avvicina · tasto destro: sposta · WASD: muoviti · Q/E: giù e su';
   $('hint').style.opacity=1;clearTimeout(setMode.h);setMode.h=setTimeout(()=>$('hint').style.opacity=0,5200);
   if(m==='doll'){hideCard();const p=dollPos(),t=new THREE.PerspectiveCamera();t.position.copy(p);t.lookAt(0,0,0);fade.to=0;
-    tween(p,t.quaternion,()=>{orbit.target.set(0,0,0);orbit.enabled=true;orbit.update()})}
+    tween(p,t.quaternion,()=>{fly.p.copy(cam.position);const e=new THREE.Euler().setFromQuaternion(cam.quaternion,'YXZ');fly.yaw=e.y;fly.pitch=e.x})}
   else{ceil.visible=true;fade.to=1;if(m==='tour')tourStart();if(from==='doll'||m==='tour')tween(V3(me.x,EYE,me.z),walkQuat(),null)}}
 const fade={v:1,to:1};
 // tour: polyline through the doors; a third entry pauses in that room
@@ -405,7 +406,7 @@ const TOUR=[[228,870,'land'],[176,822],[176,764],[176,700],[240,690,'hall'],[370
   [670,1245],[625,1245],[560,1325],[524,1368],[524,1440],[540,1500,'a3'],[524,1440],[524,1368],[412,1368],[412,1500],[412,1570],[400,1620,'a4'],[412,1570],[412,1500],[400,1340],[320,1350,'ster']];
 const tour={i:0,pause:0,room:null,sweep:0};
 const yawTo=(dx,dz)=>Math.atan2(-dx,-dz), angd=(a,b)=>{let d=(a-b)%(2*Math.PI);if(d>Math.PI)d-=2*Math.PI;if(d<-Math.PI)d+=2*Math.PI;return d};
-function tourStart(){tour.i=0;me.x=X(TOUR[0][0]);me.z=Z(TOUR[0][1]);me.pitch=0;{const v=ROOMS[TOUR[0][2]].views[0];me.yaw=yawTo(X(v[0])-me.x,Z(v[1])-me.z)}tourPause(TOUR[0][2]);startMusic()}
+function tourStart(){tour.i=0;me.x=X(TOUR[0][0]);me.z=Z(TOUR[0][1]);me.pitch=0;{const v=ROOMS[TOUR[0][2]].views[0];me.yaw=yawTo(X(v[0])-me.x,Z(v[1])-me.z)}tourPause(TOUR[0][2])}
 const VIEW_T=1.9;function tourPause(k){tour.pause=.6+VIEW_T*ROOMS[k].views.length;tour.room=k;tour.sweep=0;showCard(k)}
 function tourStep(dt){
   if(tour.pause>0){if(tw.t>=1){tour.pause-=dt;tour.sweep+=dt}const vs=ROOMS[tour.room].views,v=vs[Math.min(vs.length-1,tour.sweep/VIEW_T|0)],dx=X(v[0])-me.x,dz=Z(v[1])-me.z,k=Math.min(1,dt*2.7);
@@ -419,19 +420,26 @@ function showCard(k){const r=ROOMS[k];$('cN').textContent=r.n;$('cS').textConten
   $('cP').hidden=!r.p;$('cA').hidden=!r.assumed;$('card').classList.remove('off')}
 function hideCard(){$('card').classList.add('off')}
 
-// input
-// top view: double click (or double tap) re-centres the rotation on that point of the floor
-const ray=new THREE.Raycaster(),floorPlane=new THREE.Plane(V3(0,1,0),0);
-renderer.domElement.addEventListener('dblclick',e=>{if(mode!=='doll'||tw.t<1)return;const r=renderer.domElement.getBoundingClientRect(),hitP=V3();
-  ray.setFromCamera(new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),cam);
-  if(ray.ray.intersectPlane(floorPlane,hitP)){const d=hitP.sub(orbit.target);orbit.target.add(d);cam.position.add(d)}});
-const keys={};addEventListener('keydown',e=>{keys[e.code]=true;if(mode==='walk'&&e.code.startsWith('Arrow'))e.preventDefault()});addEventListener('keyup',e=>keys[e.code]=false);
-const el=renderer.domElement;let drag=null;
+// input: the same gestures in both views. Drag looks around, pinch or wheel moves forward and back,
+// two fingers or right drag slide sideways, joystick or WASD move. Nothing is anchored to a pivot.
+const ray=new THREE.Raycaster();
+const keys={};addEventListener('keydown',e=>{keys[e.code]=true;if(mode!=='tour'&&e.code.startsWith('Arrow'))e.preventDefault()});addEventListener('keyup',e=>keys[e.code]=false);
+const el=renderer.domElement,ptr=new Map();let pinch=null;
+el.addEventListener('contextmenu',e=>e.preventDefault());
 el.addEventListener('click',()=>{if(mode==='walk'&&!coarse&&document.pointerLockElement!==el){try{const p=el.requestPointerLock();p&&p.catch&&p.catch(()=>{})}catch(e){}}});
 addEventListener('mousemove',e=>{if(mode==='walk'&&document.pointerLockElement===el){me.yaw-=e.movementX*.0022;me.pitch=Math.max(-1.2,Math.min(1.2,me.pitch-e.movementY*.0022))}});
-el.addEventListener('pointerdown',e=>{if(mode==='walk'&&document.pointerLockElement!==el){drag=[e.clientX,e.clientY,e.pointerId];el.setPointerCapture(e.pointerId)}});
-el.addEventListener('pointermove',e=>{if(drag&&e.pointerId===drag[2]){me.yaw-=(e.clientX-drag[0])*.005;me.pitch=Math.max(-1.2,Math.min(1.2,me.pitch-(e.clientY-drag[1])*.005));drag[0]=e.clientX;drag[1]=e.clientY}});
-el.addEventListener('pointerup',()=>drag=null);el.addEventListener('pointercancel',()=>drag=null);
+function look(dx,dy){const o=mode==='doll'?fly:me;o.yaw-=dx*.005;o.pitch=Math.max(-1.5,Math.min(1.2,o.pitch-dy*.005))}
+function slide(dx,dy){if(mode!=='doll')return;const k=Math.max(.6,fly.p.y)*.0022;fly.p.addScaledVector(V3(1,0,0).applyQuaternion(cam.quaternion),-dx*k).addScaledVector(V3(0,1,0).applyQuaternion(cam.quaternion),dy*k)}
+function dolly(a,cx,cy){
+  if(mode==='doll'){const r=el.getBoundingClientRect();ray.setFromCamera(new THREE.Vector2((cx-r.left)/r.width*2-1,-(cy-r.top)/r.height*2+1),cam);fly.p.addScaledVector(ray.ray.direction,a*Math.max(.8,fly.p.y)*.9)}
+  else if(mode==='walk'){const dx=-Math.sin(me.yaw)*a*1.2,dz=-Math.cos(me.yaw)*a*1.2;if(!hit(me.x+dx,me.z,.22))me.x+=dx;if(!hit(me.x,me.z+dz,.22))me.z+=dz}}
+el.addEventListener('pointerdown',e=>{if(mode==='tour'||tw.t<1||document.pointerLockElement===el)return;ptr.set(e.pointerId,[e.clientX,e.clientY,e.button]);try{el.setPointerCapture(e.pointerId)}catch(x){}pinch=null});
+el.addEventListener('pointermove',e=>{const p=ptr.get(e.pointerId);if(!p)return;const dx=e.clientX-p[0],dy=e.clientY-p[1];p[0]=e.clientX;p[1]=e.clientY;
+  if(ptr.size===1){p[2]===2?slide(dx,dy):look(dx,dy)}
+  else if(ptr.size===2){const [a,b]=[...ptr.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]),mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;
+    if(pinch){dolly((d-pinch[0])*.0045,mx,my);slide(mx-pinch[1],my-pinch[2])}pinch=[d,mx,my]}});
+const ptrUp=e=>{ptr.delete(e.pointerId);pinch=null};el.addEventListener('pointerup',ptrUp);el.addEventListener('pointercancel',ptrUp);
+el.addEventListener('wheel',e=>{e.preventDefault();if(tw.t>=1)dolly(-Math.sign(e.deltaY)*.22,e.clientX,e.clientY)},{passive:false});
 const joy={x:0,y:0},stick=$('stick'),knob=$('knob');
 function joyMove(e){const r=stick.getBoundingClientRect();let x=(e.clientX-r.left-r.width/2)/(r.width/2),y=(e.clientY-r.top-r.height/2)/(r.height/2);const l=Math.hypot(x,y);if(l>1){x/=l;y/=l}joy.x=x;joy.y=y;knob.style.transform=`translate(${x*34}px,${y*34}px)`}
 stick.addEventListener('pointerdown',e=>{stick.setPointerCapture(e.pointerId);joyMove(e)});stick.addEventListener('pointermove',e=>{if(e.buttons||e.pointerType==='touch')joyMove(e)});
@@ -442,23 +450,12 @@ function walkStep(dt){let f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.Arrow
     if(!hit(me.x+dx,me.z,.22))me.x+=dx;if(!hit(me.x,me.z+dz,.22))me.z+=dz}
   const k=roomAt(me.x,me.z);if(k!==lastRoom){lastRoom=k;if(k){showCard(k);$('cP').hidden=true;clearTimeout(walkStep.h);walkStep.h=setTimeout(hideCard,2600)}}}
 
-// music: slow pad chords and sparse bells, synthesised with WebAudio (no files)
-let actx=null,master=null,muted=false,musicTimer=null;
-function startMusic(){if(actx){actx.resume();return}const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;actx=new AC();
-  master=actx.createGain();master.gain.value=0;master.connect(actx.destination);master.gain.linearRampToValueAtTime(muted?0:.16,actx.currentTime+3);
-  const lp=actx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=1100;lp.connect(master);
-  const dl=actx.createDelay(1.5);dl.delayTime.value=.46;const fb=actx.createGain();fb.gain.value=.38;lp.connect(dl);dl.connect(fb);fb.connect(dl);dl.connect(master);
-  const chords=[[220,277.18,329.63,415.3],[196,246.94,293.66,369.99],[174.61,220,261.63,329.63],[196,246.94,329.63,392]],penta=[659.25,739.99,880,987.77,1108.73,1318.5];let bar=0;const r=rng(7);
-  const voice=(f,t,dur,type,g)=>{const o=actx.createOscillator(),a=actx.createGain();o.type=type;o.frequency.value=f;o.detune.value=(r()-.5)*14;a.gain.setValueAtTime(0,t);a.gain.linearRampToValueAtTime(g,t+dur*.35);a.gain.linearRampToValueAtTime(0,t+dur);o.connect(a);a.connect(lp);o.start(t);o.stop(t+dur+.1)};
-  const bell=(f,t)=>{const o=actx.createOscillator(),a=actx.createGain();o.type='sine';o.frequency.value=f;a.gain.setValueAtTime(0,t);a.gain.linearRampToValueAtTime(.09,t+.02);a.gain.exponentialRampToValueAtTime(.0005,t+3.2);o.connect(a);a.connect(lp);o.start(t);o.stop(t+3.4)};
-  const sched=()=>{const t=actx.currentTime+.1,c=chords[bar++%4];c.forEach((f,i)=>{voice(f/2,t,9,'sine',.11);voice(f,t+i*.25,8.5,'triangle',.045)});
-    for(let i=0;i<3;i++)if(r()<.75)bell(penta[r()*penta.length|0],t+1+i*2.4+r())};
-  sched();musicTimer=setInterval(sched,8000);setMute(muted)}
-function setMute(m){muted=m;const on=!!actx&&!m;$('bMute').setAttribute('aria-pressed',String(on));$('bMute').innerHTML=on?'&#9834; Musica attiva':'&#9834; Musica';if(master)master.gain.setTargetAtTime(m?0:.16,actx.currentTime,.25)}
-$('bMute').onclick=()=>{if(!actx){muted=false;startMusic()}else setMute(!muted)};
+
 
 // UI
-Object.entries(STYLES).forEach(([k,s])=>{const b=document.createElement('button');b.textContent=s.n;b.dataset.k=k;b.onclick=()=>{if(k===styleKey)return;$('veil').style.opacity=1;setTimeout(()=>{applyStyle(k);$('veil').style.opacity=0},290)};$('styles').appendChild(b)});
+const styleMenu=open=>{$('styles').hidden=!open;$('bStyle').setAttribute('aria-expanded',String(open))};
+Object.entries(STYLES).forEach(([k,s])=>{const b=document.createElement('button');b.textContent=s.n;b.dataset.k=k;b.setAttribute('role','option');b.onclick=()=>{styleMenu(false);if(k===styleKey)return;$('veil').style.opacity=1;setTimeout(()=>{applyStyle(k);$('veil').style.opacity=0},290)};$('styles').appendChild(b)});
+$('bStyle').onclick=()=>styleMenu($('styles').hidden);addEventListener('pointerdown',e=>{if(!e.target.closest('.dd'))styleMenu(false)});
 $('bTour').onclick=()=>{if(mode==='tour'){hideCard();setMode('walk')}else setMode('tour')};
 $('bView').onclick=()=>setMode(mode==='doll'?'walk':'doll');
 $('bLead').onclick=()=>{showLead=!showLead;paintLead();tech.visible=showLead;$('bLead').setAttribute('aria-pressed',String(showLead));
@@ -481,12 +478,12 @@ function renderVerify(){const worst=Math.max(...chk.dims.map(d=>Math.abs(d.delta
   $('vDoors').textContent=GEO.doors.map(d=>`${d[7]} ${Math.round(Math.max(d[2]-d[0],d[3]-d[1])*GEO.CM)} cm`).join(' · ')}
 function renderRun(){$('vRun').innerHTML=`Percorso del tour: ${TOUR.length-1} tratti, <b class="${pathBad.length?'bad':'ok'}">${pathBad.length} urti</b> contro muri o arredi.<br>Fluidità misurata ora: <b>${fps?Math.round(fps):'…'} fps</b>.`}
 renderVerify();
-window.__check={scene,M,tour,orbit,cam,pathBad,get fps(){return fps},rooms:Object.fromEntries(Object.entries(ROOMS).map(([k,r])=>[k,+r.m2.toFixed(2)])),hit,me,setMode,meshes:()=>{let n=0;scene.traverse(o=>o.isMesh&&n++);return n}};
+window.__check={scene,M,tour,fly,cam,pathBad,get fps(){return fps},rooms:Object.fromEntries(Object.entries(ROOMS).map(([k,r])=>[k,+r.m2.toFixed(2)])),hit,me,setMode,meshes:()=>{let n=0;scene.traverse(o=>o.isMesh&&n++);return n}};
 
 // ---------- loop ----------
 function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix()}
 addEventListener('resize',resize);resize();applyStyle('nordico');
-setMode('doll');cam.position.copy(tw.p1);cam.quaternion.copy(tw.q1);tw.t=1;tw.done();tw.done=null;fade.v=fade.to=0;M.ceil.opacity=0;ceil.visible=false;$('stick').hidden=!coarse;if(coarse)$('hint').textContent='Joystick per muoverti, trascina per guardare';
+setMode('doll');cam.position.copy(tw.p1);cam.quaternion.copy(tw.q1);tw.t=1;tw.done();tw.done=null;fade.v=fade.to=0;M.ceil.opacity=0;ceil.visible=false;
 const clock=new THREE.Clock(),ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;let acc=0,frames=0;
 function frame(dt,draw=true){
   acc+=dt;frames++;if(acc>=1){fps=frames/acc;acc=frames=0;if(!$('verify').hidden)renderRun()}
@@ -494,10 +491,9 @@ function frame(dt,draw=true){
     if(fade.v===fade.to){ceil.visible=fade.to>0;renderer.shadowMap.needsUpdate=true}}
   if(tw.t<1){tw.t=Math.min(1,tw.t+dt/1.7);const k=ease(tw.t);if(mode!=='doll'){tw.p1.set(me.x,EYE,me.z);tw.q1.copy(walkQuat())}
     cam.position.lerpVectors(tw.p0,tw.p1,k);cam.quaternion.slerpQuaternions(tw.q0,tw.q1,k);if(mode==='tour')tourStep(dt);if(tw.t===1&&tw.done){tw.done();tw.done=null}}
-  else if(mode==='doll'){const f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),r=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
-    if(f||r){const d=cam.getWorldDirection(V3());d.y=0;d.normalize();const v=cam.position.distanceTo(orbit.target)*.45*dt,mv=V3(d.x*f-d.z*r,0,d.z*f+d.x*r).multiplyScalar(v),t=orbit.target;
-      mv.x=Math.max(-7-t.x,Math.min(7-t.x,mv.x));mv.z=Math.max(-11-t.z,Math.min(11-t.z,mv.z));t.add(mv);cam.position.add(mv)}
-    orbit.update()}
+  else if(mode==='doll'){const f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0)-joy.y,r=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0)+joy.x,u=(keys.KeyE?1:0)-(keys.KeyQ?1:0);
+    if(f||r||u){const v=Math.max(1.5,fly.p.y*.7)*dt;fly.p.addScaledVector(cam.getWorldDirection(V3()),f*v).addScaledVector(V3(1,0,0).applyQuaternion(cam.quaternion),r*v);fly.p.y+=u*v}
+    fly.p.set(Math.max(-22,Math.min(22,fly.p.x)),Math.max(.5,Math.min(40,fly.p.y)),Math.max(-26,Math.min(26,fly.p.z)));cam.position.copy(fly.p);cam.rotation.set(fly.pitch,fly.yaw,0)}
   else{if(mode==='tour')tourStep(dt);else walkStep(dt);cam.position.set(me.x,EYE,me.z);cam.quaternion.copy(walkQuat())}
   const fv=mode==='tour'&&tour.pause>0?76:68;if(Math.abs(cam.fov-fv)>.05){cam.fov+=(fv-cam.fov)*Math.min(1,dt*2);cam.updateProjectionMatrix()}
   if(draw)renderer.render(scene,cam)}

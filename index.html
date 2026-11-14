@@ -406,9 +406,9 @@ const TOUR=[[228,870,'land'],[176,822],[176,764],[176,700],[240,690,'hall'],[370
 const tour={i:0,pause:0,room:null,sweep:0};
 const yawTo=(dx,dz)=>Math.atan2(-dx,-dz), angd=(a,b)=>{let d=(a-b)%(2*Math.PI);if(d>Math.PI)d-=2*Math.PI;if(d<-Math.PI)d+=2*Math.PI;return d};
 function tourStart(){tour.i=0;me.x=X(TOUR[0][0]);me.z=Z(TOUR[0][1]);me.pitch=0;{const v=ROOMS[TOUR[0][2]].views[0];me.yaw=yawTo(X(v[0])-me.x,Z(v[1])-me.z)}tourPause(TOUR[0][2]);startMusic()}
-const VIEW_T=2.5;function tourPause(k){tour.pause=1+VIEW_T*ROOMS[k].views.length;tour.room=k;tour.sweep=0;showCard(k)}
+const VIEW_T=1.9;function tourPause(k){tour.pause=.6+VIEW_T*ROOMS[k].views.length;tour.room=k;tour.sweep=0;showCard(k)}
 function tourStep(dt){
-  if(tour.pause>0){if(tw.t>=1){tour.pause-=dt;tour.sweep+=dt}const vs=ROOMS[tour.room].views,v=vs[Math.min(vs.length-1,tour.sweep/VIEW_T|0)],dx=X(v[0])-me.x,dz=Z(v[1])-me.z,k=Math.min(1,dt*1.9);
+  if(tour.pause>0){if(tw.t>=1){tour.pause-=dt;tour.sweep+=dt}const vs=ROOMS[tour.room].views,v=vs[Math.min(vs.length-1,tour.sweep/VIEW_T|0)],dx=X(v[0])-me.x,dz=Z(v[1])-me.z,k=Math.min(1,dt*2.7);
     me.yaw+=angd(yawTo(dx,dz),me.yaw)*k;me.pitch+=(Math.max(-1.05,Math.atan2(v[2]-EYE,Math.hypot(dx,dz)))-me.pitch)*k;if(tour.pause<=0)hideCard();return}
   me.pitch+=(-.05-me.pitch)*Math.min(1,dt*2.5);
   const n=TOUR[tour.i+1];if(!n){setMode('doll');return}

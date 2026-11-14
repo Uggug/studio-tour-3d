@@ -36,8 +36,10 @@ button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 button.primary{background:var(--accent);color:var(--bg);font-weight:600}
 button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .dd{position:relative}
-#styles{position:absolute;top:calc(100% + 5px);left:-1px;display:grid;gap:2px;width:max-content;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:3px;z-index:7}
-#styles button{text-align:left}
+.menu{position:absolute;top:calc(100% + 5px);left:-1px;display:grid;gap:2px;width:max-content;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:3px;z-index:7}
+.menu button{text-align:left}
+#layers{left:auto;right:-1px}
+.sm{display:none}
 #card{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));width:min(430px,calc(100% - 32px));box-sizing:border-box;
   background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 16px;z-index:5;transition:opacity .35s ease;pointer-events:none}
 #card.off{opacity:0}
@@ -47,9 +49,6 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 #card .as{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--warn);margin-top:5px}
 .bar .hintrow{flex-basis:100%;text-align:center;pointer-events:none}
 #hint{display:inline-block;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:5px 14px;font-size:12px;color:var(--muted);transition:opacity .5s}
-#stick{position:fixed;left:calc(22px + env(safe-area-inset-left,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));width:112px;height:112px;border-radius:50%;
-  background:var(--panel);border:1px solid var(--line);z-index:6;touch-action:none}
-#knob{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px;border-radius:50%;background:var(--accent);opacity:.85}
 #verify{position:fixed;right:max(16px,env(safe-area-inset-right,0px));top:calc(64px + env(safe-area-inset-top,0px));width:min(380px,calc(100vw - 32px));
   max-height:calc(100% - 90px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 16px;z-index:6;font-size:13px;line-height:1.45}
 #verify h2{margin:0 0 6px;font-size:16px;font-weight:600}
@@ -61,7 +60,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 #verify .ok{color:var(--ok)} #verify .bad{color:var(--warn)}
 #verify label{display:flex;gap:8px;align-items:center;margin-top:8px;cursor:pointer}
 #verify ul{margin:4px 0 0;padding-left:18px}
-@media (max-width:640px){.brand div{display:none} .brand{padding:6px 10px} .brand h1{font-size:14px} #verify{top:calc(150px + env(safe-area-inset-top,0px));max-height:calc(100% - 170px)} button{padding:7px 9px} #card{bottom:calc(150px + env(safe-area-inset-bottom,0px))} #card.low{bottom:calc(18px + env(safe-area-inset-bottom,0px))}}
+@media (max-width:640px){.brand{display:none} .lg{display:none} .sm{display:inline} .bar{gap:5px;top:calc(6px + env(safe-area-inset-top,0px));justify-content:center} .grp{padding:2px;gap:2px} button{padding:6px 8px;font-size:12.5px}
+  #hint{font-size:11px;padding:4px 10px} #verify{top:calc(52px + env(safe-area-inset-top,0px));max-height:calc(100% - 70px)}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
@@ -70,12 +70,11 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 <div class="bar">
   <div class="brand"><h1>Studio dentistico Mercanzin</h1><div>da EA1 · scala 1:50 · h 2,70 m ipotizzata</div></div>
   <div class="grp"><button id="bTour" class="primary">&#9654; Avvia tour</button><button id="bView" aria-pressed="false">Vista dall'alto</button></div>
-  <div class="grp dd"><button id="bStyle" aria-haspopup="listbox" aria-expanded="false" aria-label="Stile"></button><div id="styles" role="listbox" hidden></div></div>
-  <div class="grp"><button id="bLead" aria-pressed="false">Piombature</button><button id="bSvc" aria-pressed="false">Impianti</button><button id="bCheck" aria-pressed="false">Verifica</button></div>
+  <div class="grp dd"><button id="bStyle" aria-haspopup="listbox" aria-expanded="false" aria-label="Stile"></button><div id="styles" class="menu" role="listbox" hidden></div></div>
+  <div class="grp dd"><button id="bLayers" aria-haspopup="true" aria-expanded="false">Livelli &#9662;</button><div id="layers" class="menu" hidden><button id="bLead" aria-pressed="false">Piombature</button><button id="bSvc" aria-pressed="false">Impianti</button><button id="bCheck" aria-pressed="false">Verifica</button></div></div>
   <div class="hintrow"><span id="hint">Clicca nella scena, poi WASD e mouse per camminare</span></div>
 </div>
 <div id="card" class="off" aria-live="polite"><h2 id="cN"></h2><div class="sz" id="cS"></div><p id="cP"></p><div class="as" id="cA" hidden>Uso ipotizzato: non indicato in pianta</div></div>
-<div id="stick" hidden><div id="knob"></div></div>
 <aside id="verify" hidden>
   <h2>Verifica sulla tavola EA1</h2>
   <div id="vSum"></div>
@@ -392,9 +391,9 @@ const dollPos=()=>cam.aspect<1?V3(.01,25,6):V3(7.5,13.5,.01);
 function walkQuat(){return new THREE.Quaternion().setFromEuler(new THREE.Euler(me.pitch,me.yaw,0,'YXZ'))}
 function tween(p1,q1,done){tw.p0.copy(cam.position);tw.q0.copy(cam.quaternion);tw.p1.copy(p1);tw.q1.copy(q1);tw.t=0;tw.done=done}
 function setMode(m){if(m===mode&&m!=='tour')return;const from=mode;mode=m;ptr.clear();document.exitPointerLock?.();
-  $('bView').setAttribute('aria-pressed',String(m==='doll'));$('bView').textContent=m==='doll'?'Entra e cammina':'Vista dall’alto';
-  $('bTour').innerHTML=m==='tour'?'&#9632; Ferma tour':'&#9654; Avvia tour';$('stick').hidden=!(coarse&&m!=='tour');
-  $('hint').textContent=m==='tour'?'Tour guidato in corso':coarse?'Un dito: guarda intorno · due dita: avvicina e sposta · joystick: muoviti':m==='walk'?'Clicca nella scena, poi WASD e mouse per camminare. Esc per liberare il mouse':'Trascina: guarda intorno · rotella: avvicina · tasto destro: sposta · WASD: muoviti · Q/E: giù e su';
+  $('bView').setAttribute('aria-pressed',String(m==='doll'));$('bView').innerHTML=m==='doll'?'Entra<span class="lg"> e cammina</span>':'<span class="lg">Vista dall’alto</span><span class="sm">Dall’alto</span>';
+  $('bTour').innerHTML=m==='tour'?'&#9632; <span class="lg">Ferma tour</span><span class="sm">Stop</span>':'&#9654; <span class="lg">Avvia tour</span><span class="sm">Tour</span>';
+  $('hint').textContent=m==='tour'?'Tour guidato in corso':coarse?'Un dito: guarda intorno · pizzica: avanti e indietro · due dita: sposta':m==='walk'?'Clicca nella scena, poi WASD e mouse per camminare. Esc per liberare il mouse':'Trascina: guarda intorno · rotella: avvicina · tasto destro: sposta · WASD: muoviti · Q/E: giù e su';
   $('hint').style.opacity=1;clearTimeout(setMode.h);setMode.h=setTimeout(()=>$('hint').style.opacity=0,5200);
   if(m==='doll'){hideCard();const p=dollPos(),t=new THREE.PerspectiveCamera();t.position.copy(p);t.lookAt(0,0,0);fade.to=0;
     tween(p,t.quaternion,()=>{fly.p.copy(cam.position);const e=new THREE.Euler().setFromQuaternion(cam.quaternion,'YXZ');fly.yaw=e.y;fly.pitch=e.x})}
@@ -421,7 +420,7 @@ function showCard(k){const r=ROOMS[k];$('cN').textContent=r.n;$('cS').textConten
 function hideCard(){$('card').classList.add('off')}
 
 // input: the same gestures in both views. Drag looks around, pinch or wheel moves forward and back,
-// two fingers or right drag slide sideways, joystick or WASD move. Nothing is anchored to a pivot.
+// two fingers or right drag slide sideways, WASD moves. Nothing is anchored to a pivot.
 const ray=new THREE.Raycaster();
 const keys={};addEventListener('keydown',e=>{keys[e.code]=true;if(mode!=='tour'&&e.code.startsWith('Arrow'))e.preventDefault()});addEventListener('keyup',e=>keys[e.code]=false);
 const el=renderer.domElement,ptr=new Map();let pinch=null;
@@ -440,12 +439,8 @@ el.addEventListener('pointermove',e=>{const p=ptr.get(e.pointerId);if(!p)return;
     if(pinch){dolly((d-pinch[0])*.0045,mx,my);slide(mx-pinch[1],my-pinch[2])}pinch=[d,mx,my]}});
 const ptrUp=e=>{ptr.delete(e.pointerId);pinch=null};el.addEventListener('pointerup',ptrUp);el.addEventListener('pointercancel',ptrUp);
 el.addEventListener('wheel',e=>{e.preventDefault();if(tw.t>=1)dolly(-Math.sign(e.deltaY)*.22,e.clientX,e.clientY)},{passive:false});
-const joy={x:0,y:0},stick=$('stick'),knob=$('knob');
-function joyMove(e){const r=stick.getBoundingClientRect();let x=(e.clientX-r.left-r.width/2)/(r.width/2),y=(e.clientY-r.top-r.height/2)/(r.height/2);const l=Math.hypot(x,y);if(l>1){x/=l;y/=l}joy.x=x;joy.y=y;knob.style.transform=`translate(${x*34}px,${y*34}px)`}
-stick.addEventListener('pointerdown',e=>{stick.setPointerCapture(e.pointerId);joyMove(e)});stick.addEventListener('pointermove',e=>{if(e.buttons||e.pointerType==='touch')joyMove(e)});
-const joyEnd=()=>{joy.x=joy.y=0;knob.style.transform=''};stick.addEventListener('pointerup',joyEnd);stick.addEventListener('pointercancel',joyEnd);
 let lastRoom=null;
-function walkStep(dt){let f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0)-joy.y,s=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0)+joy.x;
+function walkStep(dt){let f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),s=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
   const l=Math.hypot(f,s);if(l>1){f/=l;s/=l}if(l>.02){const v=(keys.ShiftLeft?3.2:1.9)*dt,sy=Math.sin(me.yaw),cy=Math.cos(me.yaw),dx=(-sy*f+cy*s)*v,dz=(-cy*f-sy*s)*v;
     if(!hit(me.x+dx,me.z,.22))me.x+=dx;if(!hit(me.x,me.z+dz,.22))me.z+=dz}
   const k=roomAt(me.x,me.z);if(k!==lastRoom){lastRoom=k;if(k){showCard(k);$('cP').hidden=true;clearTimeout(walkStep.h);walkStep.h=setTimeout(hideCard,2600)}}}
@@ -453,9 +448,11 @@ function walkStep(dt){let f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.Arrow
 
 
 // UI
-const styleMenu=open=>{$('styles').hidden=!open;$('bStyle').setAttribute('aria-expanded',String(open))};
-Object.entries(STYLES).forEach(([k,s])=>{const b=document.createElement('button');b.textContent=s.n;b.dataset.k=k;b.setAttribute('role','option');b.onclick=()=>{styleMenu(false);if(k===styleKey)return;$('veil').style.opacity=1;setTimeout(()=>{applyStyle(k);$('veil').style.opacity=0},290)};$('styles').appendChild(b)});
-$('bStyle').onclick=()=>styleMenu($('styles').hidden);addEventListener('pointerdown',e=>{if(!e.target.closest('.dd'))styleMenu(false)});
+// drop-down menus: a .dd holds its button first and its menu last
+const closeMenus=()=>document.querySelectorAll('.dd').forEach(d=>{d.lastElementChild.hidden=true;d.firstElementChild.setAttribute('aria-expanded','false')});
+document.querySelectorAll('.dd').forEach(d=>d.firstElementChild.onclick=()=>{const m=d.lastElementChild,open=m.hidden;closeMenus();m.hidden=!open;d.firstElementChild.setAttribute('aria-expanded',String(open))});
+addEventListener('pointerdown',e=>{if(!e.target.closest('.dd'))closeMenus()});$('layers').addEventListener('click',closeMenus);
+Object.entries(STYLES).forEach(([k,s])=>{const b=document.createElement('button');b.textContent=s.n;b.dataset.k=k;b.setAttribute('role','option');b.onclick=()=>{closeMenus();if(k===styleKey)return;$('veil').style.opacity=1;setTimeout(()=>{applyStyle(k);$('veil').style.opacity=0},290)};$('styles').appendChild(b)});
 $('bTour').onclick=()=>{if(mode==='tour'){hideCard();setMode('walk')}else setMode('tour')};
 $('bView').onclick=()=>setMode(mode==='doll'?'walk':'doll');
 $('bLead').onclick=()=>{showLead=!showLead;paintLead();tech.visible=showLead;$('bLead').setAttribute('aria-pressed',String(showLead));
@@ -491,7 +488,7 @@ function frame(dt,draw=true){
     if(fade.v===fade.to){ceil.visible=fade.to>0;renderer.shadowMap.needsUpdate=true}}
   if(tw.t<1){tw.t=Math.min(1,tw.t+dt/1.7);const k=ease(tw.t);if(mode!=='doll'){tw.p1.set(me.x,EYE,me.z);tw.q1.copy(walkQuat())}
     cam.position.lerpVectors(tw.p0,tw.p1,k);cam.quaternion.slerpQuaternions(tw.q0,tw.q1,k);if(mode==='tour')tourStep(dt);if(tw.t===1&&tw.done){tw.done();tw.done=null}}
-  else if(mode==='doll'){const f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0)-joy.y,r=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0)+joy.x,u=(keys.KeyE?1:0)-(keys.KeyQ?1:0);
+  else if(mode==='doll'){const f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),r=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0),u=(keys.KeyE?1:0)-(keys.KeyQ?1:0);
     if(f||r||u){const v=Math.max(1.5,fly.p.y*.7)*dt;fly.p.addScaledVector(cam.getWorldDirection(V3()),f*v).addScaledVector(V3(1,0,0).applyQuaternion(cam.quaternion),r*v);fly.p.y+=u*v}
     fly.p.set(Math.max(-22,Math.min(22,fly.p.x)),Math.max(.5,Math.min(40,fly.p.y)),Math.max(-26,Math.min(26,fly.p.z)));cam.position.copy(fly.p);cam.rotation.set(fly.pitch,fly.yaw,0)}
   else{if(mode==='tour')tourStep(dt);else walkStep(dt);cam.position.set(me.x,EYE,me.z);cam.quaternion.copy(walkQuat())}

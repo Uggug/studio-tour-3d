@@ -234,6 +234,7 @@ const svc=new THREE.Group();svc.visible=false;scene.add(svc);
  [[184,458,1,0],[870.5-125/GEO.CM,1467,0,1],[129+125/GEO.CM,1534.5,0,1]].forEach(([px,py,nx,nz])=>{const g=grp(px,py,face(nx,nz),svc);box(.16,.09,.02,flat(0x35c8ff),g,0,1.1,.012)})}
 // rooms: rects are net interior faces (px); floor kind; tour data
 const ROOMS={
+  land:{n:'Arrivo dal pianerottolo',rects:[[51,782.5,285,900],[51,900,196,1095]],floor:'core',p:'Si arriva con le scale o con l’ascensore: lo studio è la porta di fronte. A sinistra la sala macchine, fuori dall’area clinica.'},
   mach:{n:'Sala macchine',rects:[[51,1112,303,1212],[208,1095,303,1112]],floor:'core',look:[100,1150],p:'Compressore e aspirazione stanno fuori dall’area clinica, in un locale insonorizzato. L’aria aspirata esce con filtro HEPA H14.'},
   hall:{n:'Ingresso',rects:[[129,607,650,744],[430,478,571.5,607],[571.5,589.5,650,607]],floor:'hall',look:[520,676],p:'Si entra direttamente dal pianerottolo con ascensore, senza gradini.'},
   a1:{n:'Ambulatorio A.1',rects:[[129,129,418,595],[418,129,461,215]],floor:'clin',look:[262,310],p:'Tre finestre su due lati. Pareti verso corridoio e panoramica schermate con Knauf Safeboard.'},
@@ -251,7 +252,7 @@ const ROOMS={
 };
 for(const r of Object.values(ROOMS)){r.m2=r.rects.reduce((s,[a,b,c,d])=>s+(c-a)*(d-b),0)*K*K;r.ft2=r.m2*10.7639}
 // what the tour looks at in each room: [px,py,height m]. The camera pitches down to low objects (WC, basin, seats).
-const VIEWS={mach:[[92,1106,1.1],[288,992,1.3]],hall:[[268,612,1.2],[500,738,1.1],[560,676,1.5]],
+const VIEWS={land:[[177,760,1.35],[92,1106,1.1],[177,760,1.35]],mach:[[92,1106,1.1],[288,992,1.3]],hall:[[268,612,1.2],[500,738,1.1],[560,676,1.5]],
   a1:[[272,300,.75],[200,575,.95],[186,131,1.45],[416,334,1.6]],rx:[[512,255,1.45],[455,392,.45]],
   a2:[[752,340,.75],[800,552,.95],[868,315,1.4],[704,228,1.5]],wait:[[712,634,.6],[822,634,.6],[766,592,1.5],[848,640,1.2]],
   wc:[[862,861,.35],[835,820,.85],[737,968,.85],[737,985,1.5]],cor:[[612,1170,1.4],[540,930,1.5],[540,1090,1.5]],
@@ -383,7 +384,8 @@ plan.rotation.x=-Math.PI/2;plan.position.set(X(533.5),.004,Z(1000.1));plan.visib
 function hit(x,z,r){for(const c of CR){const nx=Math.max(c[0],Math.min(x,c[2])),nz=Math.max(c[1],Math.min(z,c[3]));if((x-nx)**2+(z-nz)**2<r*r)return true}
   for(const c of CCIR)if((x-c[0])**2+(z-c[1])**2<(r+c[2])**2)return true;return false}
 const me={x:X(240),z:Z(690),yaw:-Math.PI/2,pitch:0};
-const orbit=new OrbitControls(cam,renderer.domElement);orbit.enableDamping=true;orbit.maxPolarAngle=1.3;orbit.minDistance=4;orbit.maxDistance=45;orbit.enabled=false;
+const orbit=new OrbitControls(cam,renderer.domElement);orbit.enableDamping=true;orbit.maxPolarAngle=1.48;orbit.minDistance=1.2;orbit.maxDistance=45;orbit.enabled=false;
+orbit.zoomToCursor=true;orbit.screenSpacePanning=false;   // zoom goes to the pointer, so rotating afterwards turns around what you zoomed on
 let mode='walk';const tw={t:1,p0:V3(),p1:V3(),q0:new THREE.Quaternion(),q1:new THREE.Quaternion(),done:null};
 const dollPos=()=>cam.aspect<1?V3(.01,25,6):V3(7.5,13.5,.01);
 function walkQuat(){return new THREE.Quaternion().setFromEuler(new THREE.Euler(me.pitch,me.yaw,0,'YXZ'))}
@@ -391,22 +393,22 @@ function tween(p1,q1,done){tw.p0.copy(cam.position);tw.q0.copy(cam.quaternion);t
 function setMode(m){if(m===mode&&m!=='tour')return;const from=mode;mode=m;orbit.enabled=false;document.exitPointerLock?.();
   $('bView').setAttribute('aria-pressed',String(m==='doll'));$('bView').textContent=m==='doll'?'Entra e cammina':'Vista dall’alto';
   $('bTour').innerHTML=m==='tour'?'&#9632; Ferma tour':'&#9654; Avvia tour';$('stick').hidden=!(coarse&&m==='walk');
-  $('hint').textContent=m==='walk'?(coarse?'Joystick per muoverti, trascina per guardare':'Clicca nella scena, poi WASD e mouse per camminare. Esc per liberare il mouse'):m==='doll'?'Trascina per ruotare, rotella o due dita per lo zoom':'Tour guidato in corso';
+  $('hint').textContent=m==='walk'?(coarse?'Joystick per muoverti, trascina per guardare':'Clicca nella scena, poi WASD e mouse per camminare. Esc per liberare il mouse'):m==='doll'?(coarse?'Un dito ruota, due dita zoom e spostamento, doppio tocco centra':'Trascina per ruotare · rotella: zoom sul puntatore · tasto destro o WASD: sposta · doppio clic: centra'):'Tour guidato in corso';
   $('hint').style.opacity=1;clearTimeout(setMode.h);setMode.h=setTimeout(()=>$('hint').style.opacity=0,5200);
   if(m==='doll'){hideCard();const p=dollPos(),t=new THREE.PerspectiveCamera();t.position.copy(p);t.lookAt(0,0,0);fade.to=0;
     tween(p,t.quaternion,()=>{orbit.target.set(0,0,0);orbit.enabled=true;orbit.update()})}
   else{ceil.visible=true;fade.to=1;if(m==='tour')tourStart();if(from==='doll'||m==='tour')tween(V3(me.x,EYE,me.z),walkQuat(),null)}}
 const fade={v:1,to:1};
 // tour: polyline through the doors; a third entry pauses in that room
-const TOUR=[[170,1000,'mach'],[176,880],[176,764],[176,700],[240,690,'hall'],[370,676],[370,560],[330,500,'a1'],[370,560],[370,655],[500,655],[479,540],[479,480],[490,445,'rx'],[479,480],[479,540],[540,530],[600,530],[640,480,'a2'],
+const TOUR=[[228,870,'land'],[176,822],[176,764],[176,700],[240,690,'hall'],[370,676],[370,560],[330,500,'a1'],[370,560],[370,655],[500,655],[479,540],[479,480],[490,445,'rx'],[479,480],[479,540],[540,530],[600,530],[640,480,'a2'],
   [600,530],[540,530],[540,655],[612,700],[640,748],[680,748],[720,730,'wait'],[680,748],[640,748],[612,800],[612,860],[700,860],[722,884,'wc'],[700,860],[612,860],[612,1000,'cor'],[612,1225],[625,1245],[670,1245],[690,1290,'office'],
   [670,1245],[625,1245],[560,1325],[524,1368],[524,1440],[540,1500,'a3'],[524,1440],[524,1368],[412,1368],[412,1500],[412,1570],[400,1620,'a4'],[412,1570],[412,1500],[400,1340],[320,1350,'ster']];
 const tour={i:0,pause:0,room:null,sweep:0};
 const yawTo=(dx,dz)=>Math.atan2(-dx,-dz), angd=(a,b)=>{let d=(a-b)%(2*Math.PI);if(d>Math.PI)d-=2*Math.PI;if(d<-Math.PI)d+=2*Math.PI;return d};
-function tourStart(){tour.i=0;me.x=X(TOUR[0][0]);me.z=Z(TOUR[0][1]);me.pitch=0;me.yaw=yawTo(X(92)-me.x,Z(1106)-me.z);tourPause(TOUR[0][2]);startMusic()}
+function tourStart(){tour.i=0;me.x=X(TOUR[0][0]);me.z=Z(TOUR[0][1]);me.pitch=0;{const v=ROOMS[TOUR[0][2]].views[0];me.yaw=yawTo(X(v[0])-me.x,Z(v[1])-me.z)}tourPause(TOUR[0][2]);startMusic()}
 const VIEW_T=2.5;function tourPause(k){tour.pause=1+VIEW_T*ROOMS[k].views.length;tour.room=k;tour.sweep=0;showCard(k)}
 function tourStep(dt){
-  if(tour.pause>0){tour.pause-=dt;tour.sweep+=dt;const vs=ROOMS[tour.room].views,v=vs[Math.min(vs.length-1,tour.sweep/VIEW_T|0)],dx=X(v[0])-me.x,dz=Z(v[1])-me.z,k=Math.min(1,dt*1.9);
+  if(tour.pause>0){if(tw.t>=1){tour.pause-=dt;tour.sweep+=dt}const vs=ROOMS[tour.room].views,v=vs[Math.min(vs.length-1,tour.sweep/VIEW_T|0)],dx=X(v[0])-me.x,dz=Z(v[1])-me.z,k=Math.min(1,dt*1.9);
     me.yaw+=angd(yawTo(dx,dz),me.yaw)*k;me.pitch+=(Math.max(-1.05,Math.atan2(v[2]-EYE,Math.hypot(dx,dz)))-me.pitch)*k;if(tour.pause<=0)hideCard();return}
   me.pitch+=(-.05-me.pitch)*Math.min(1,dt*2.5);
   const n=TOUR[tour.i+1];if(!n){setMode('doll');return}
@@ -418,6 +420,11 @@ function showCard(k){const r=ROOMS[k];$('cN').textContent=r.n;$('cS').textConten
 function hideCard(){$('card').classList.add('off')}
 
 // input
+// top view: double click (or double tap) re-centres the rotation on that point of the floor
+const ray=new THREE.Raycaster(),floorPlane=new THREE.Plane(V3(0,1,0),0);
+renderer.domElement.addEventListener('dblclick',e=>{if(mode!=='doll'||tw.t<1)return;const r=renderer.domElement.getBoundingClientRect(),hitP=V3();
+  ray.setFromCamera(new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),cam);
+  if(ray.ray.intersectPlane(floorPlane,hitP)){const d=hitP.sub(orbit.target);orbit.target.add(d);cam.position.add(d)}});
 const keys={};addEventListener('keydown',e=>{keys[e.code]=true;if(mode==='walk'&&e.code.startsWith('Arrow'))e.preventDefault()});addEventListener('keyup',e=>keys[e.code]=false);
 const el=renderer.domElement;let drag=null;
 el.addEventListener('click',()=>{if(mode==='walk'&&!coarse&&document.pointerLockElement!==el){try{const p=el.requestPointerLock();p&&p.catch&&p.catch(()=>{})}catch(e){}}});
@@ -474,7 +481,7 @@ function renderVerify(){const worst=Math.max(...chk.dims.map(d=>Math.abs(d.delta
   $('vDoors').textContent=GEO.doors.map(d=>`${d[7]} ${Math.round(Math.max(d[2]-d[0],d[3]-d[1])*GEO.CM)} cm`).join(' · ')}
 function renderRun(){$('vRun').innerHTML=`Percorso del tour: ${TOUR.length-1} tratti, <b class="${pathBad.length?'bad':'ok'}">${pathBad.length} urti</b> contro muri o arredi.<br>Fluidità misurata ora: <b>${fps?Math.round(fps):'…'} fps</b>.`}
 renderVerify();
-window.__check={scene,M,tour,pathBad,get fps(){return fps},rooms:Object.fromEntries(Object.entries(ROOMS).map(([k,r])=>[k,+r.m2.toFixed(2)])),hit,me,setMode,meshes:()=>{let n=0;scene.traverse(o=>o.isMesh&&n++);return n}};
+window.__check={scene,M,tour,orbit,cam,pathBad,get fps(){return fps},rooms:Object.fromEntries(Object.entries(ROOMS).map(([k,r])=>[k,+r.m2.toFixed(2)])),hit,me,setMode,meshes:()=>{let n=0;scene.traverse(o=>o.isMesh&&n++);return n}};
 
 // ---------- loop ----------
 function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix()}
@@ -487,7 +494,10 @@ function frame(dt,draw=true){
     if(fade.v===fade.to){ceil.visible=fade.to>0;renderer.shadowMap.needsUpdate=true}}
   if(tw.t<1){tw.t=Math.min(1,tw.t+dt/1.7);const k=ease(tw.t);if(mode!=='doll'){tw.p1.set(me.x,EYE,me.z);tw.q1.copy(walkQuat())}
     cam.position.lerpVectors(tw.p0,tw.p1,k);cam.quaternion.slerpQuaternions(tw.q0,tw.q1,k);if(mode==='tour')tourStep(dt);if(tw.t===1&&tw.done){tw.done();tw.done=null}}
-  else if(mode==='doll')orbit.update();
+  else if(mode==='doll'){const f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),r=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
+    if(f||r){const d=cam.getWorldDirection(V3());d.y=0;d.normalize();const v=cam.position.distanceTo(orbit.target)*.45*dt,mv=V3(d.x*f-d.z*r,0,d.z*f+d.x*r).multiplyScalar(v),t=orbit.target;
+      mv.x=Math.max(-7-t.x,Math.min(7-t.x,mv.x));mv.z=Math.max(-11-t.z,Math.min(11-t.z,mv.z));t.add(mv);cam.position.add(mv)}
+    orbit.update()}
   else{if(mode==='tour')tourStep(dt);else walkStep(dt);cam.position.set(me.x,EYE,me.z);cam.quaternion.copy(walkQuat())}
   const fv=mode==='tour'&&tour.pause>0?76:68;if(Math.abs(cam.fov-fv)>.05){cam.fov+=(fv-cam.fov)*Math.min(1,dt*2);cam.updateProjectionMatrix()}
   if(draw)renderer.render(scene,cam)}

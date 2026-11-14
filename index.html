@@ -68,7 +68,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   <div class="brand"><h1>Studio dentistico Mercanzin</h1><div>da EA1 · scala 1:50 · h 2,70 m ipotizzata</div></div>
   <div class="grp"><button id="bTour" class="primary">&#9654; Avvia tour</button><button id="bView" aria-pressed="false">Vista dall'alto</button></div>
   <div class="grp" id="styles" role="group" aria-label="Stile"></div>
-  <div class="grp"><button id="bMute" aria-pressed="false" aria-label="Musica">&#9834; Musica</button><button id="bCheck" aria-pressed="false">Verifica</button></div>
+  <div class="grp"><button id="bMute" aria-pressed="false" aria-label="Musica">&#9834; Musica</button><button id="bLead" aria-pressed="false">Piombature</button><button id="bCheck" aria-pressed="false">Verifica</button></div>
   <div class="hintrow"><span id="hint">Clicca nella scena, poi WASD e mouse per camminare</span></div>
 </div>
 <div id="card" class="off" aria-live="polite"><h2 id="cN"></h2><div class="sz" id="cS"></div><p id="cP"></p><div class="as" id="cA" hidden>Uso ipotizzato: non indicato in pianta</div></div>
@@ -85,6 +85,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   <h3>Prove eseguite in pagina</h3>
   <div id="vRun"></div>
   <label><input type="checkbox" id="vPlan"> Mostra la pianta EA1 sotto il modello</label>
+  <h3>Modelli 3D</h3>
+  <div>Riunito: “Dental Chair” di neilken. Sgabello: “Doctor Stool” di krio302. Sketchfab, licenza CC BY 4.0, ricolorati e semplificati.</div>
   <h3>Non indicato nelle tavole</h3>
   <ul><li>Altezza interna (usata 2,70 m), davanzali e architravi delle finestre.</li><li>Orientamento: nord ipotizzato in alto.</li><li>Uso dei due locali senza nome: mostrati come attesa e studio.</li><li>La parola finale spetta al progettista e al rilievo in cantiere.</li></ul>
 </aside>
@@ -97,6 +99,7 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 
 // Geometry is injected by build.py: rectangles snapped to the vector lines of EA1.pdf, in traced px (1 px = GEO.CM cm).
 const GEO={"CM":1.024675622201395,"walls":[[90.0,89.86,246.16,128.9,"e"],[343.66,89.86,499.83,128.9,"e"],[460.79,129,499.83,226.61,"e"],[499,187.57,656.0,226.61,"e"],[753.5,187.57,870.5,226.61,"e"],[870.62,187.5,909.66,909.73,"e"],[870.62,968.19,909.66,1026.86,"e"],[870.62,1085.32,909.66,1807.5,"e"],[499,1768.44,656.0,1807.48,"e"],[753.5,1768.44,870.5,1807.48,"e"],[460.79,1768.44,499.83,1904.98,"e"],[90.0,1866.15,246.16,1904.98,"e"],[343.66,1866.15,461,1904.98,"e"],[90.0,1251,129.04,1414.79,"e"],[90.0,1512.29,129.04,1658.75,"e"],[90.0,1756.25,129.04,1866.15,"e"],[90.0,129,129.04,238.59,"e"],[90,335,129,482,"e"],[90.0,580.25,129.04,744,"e"],[11.91,743.86,50.95,899.82,"s"],[11.91,1095.02,50.95,1251.19,"s"],[11.91,743.86,137.71,782.69,"s"],[215.8,743.86,537.84,782.69,"s"],[498.8,782.5,537.84,1212,"s"],[11.91,1212.15,537.84,1251.19,"s"],[196.38,899.82,381.88,919.65,"s"],[367.21,919.5,381.88,1076,"s"],[196.38,1075.61,381.88,1095.02,"s"],[125.94,1095,208.57,1112.17,"s"],[51,1100,57.56,1112,"s"],[302.76,1095,313.5,1212,"s"],[129.04,594.92,330.65,607.11,"r"],[408.73,595,415.55,607.11,"i"],[418.03,479.86,430.22,607.11,"r"],[418.03,214.42,430.22,479.86,"b"],[430,214.42,460.79,226.61,"i"],[571.72,226.61,583.9,467,"b"],[522.14,467.67,583.9,479.86,"b"],[432.28,467,435.17,478,"i"],[571.5,479.86,583.9,490.4,"i"],[571.5,568.48,584,575.3,"i"],[571.72,577.36,870.62,589.55,"r"],[650.21,589.55,662.4,708.12,"i"],[650.21,789.92,662.5,811.61,"i"],[662.5,799.42,870.5,811.61,"i"],[682.85,811.5,695.04,821.32,"i"],[686.36,900,693.18,987,"i"],[693,987.2,870.5,1009.3,"i"],[686.36,1009.5,693.18,1097,"i"],[682.85,1175.17,695.04,1185,"i"],[635.55,1184.88,870.5,1197.07,"i"],[635.55,1283.62,647.73,1397.86,"i"],[635.55,1397.86,647.73,1466.85,"r"],[564.49,1397.86,635.5,1410.04,"r"],[647.5,1454.66,870.62,1466.85,"r"],[460.79,1397.86,472.98,1768.44,"r"],[475.66,1398,482.48,1410,"r"],[129.04,1522.21,373.2,1534.4,"r"],[451.29,1522,458.1,1534.5,"i"],[358.33,1390,363.29,1522.21,"i"]],"windows":[[246.16,90,343.66,128.9],[656.0,187.5,753.5,226.61],[870.62,909.73,909.5,968.19],[870.62,1026.86,909.5,1085.32],[656.0,1768.44,753.5,1807.5],[246.16,1866.15,343.66,1905],[90,1414.79,129.04,1512.29],[90,1658.75,129.04,1756.25],[90,238.59,129.04,335],[90,482,129.04,580.25],[11.91,899.82,50.95,1095.02]],"doors":[[137.71,744,215.8,782.5,"L",-1,"swing","Ingresso"],[330.65,595,408.73,607,"R",-1,"swing","A.1"],[435.17,467,522.14,478,"L",1,"swing","RX"],[571.5,490.4,584,568.48,"B",1,"swing","A.2"],[650,708.12,662.5,789.92,"B",1,"swing","Attesa"],[686.5,821.32,693,900,"T",1,"slide","WC 1"],[686.5,1097,693,1175.17,"B",1,"slide","WC 2"],[635.5,1205.75,647.5,1283.62,"T",1,"swing","Studio"],[482.48,1398,564.49,1410,"L",1,"swing","A.3"],[373.2,1522,451.29,1534.5,"R",1,"swing","A.4"],[57.56,1100,125.94,1112.17,"L",1,"swing","Macchine"]],"eq":{"A.1":{"box":[275.4,219.8],"head":[272,378],"drawn":[275,218],"dev_cm":1.8},"A.2":{"box":[777.8,278.2],"head":[715,405],"drawn":[777,278],"dev_cm":0.8},"A.3":{"box":[567.7,1702.1],"head":[683,1590],"drawn":[567,1700],"dev_cm":2.2},"A.4":{"box":[226.6,1782.1],"head":[340,1675],"drawn":[227,1778],"dev_cm":4.2}},"check":{"cm_per_px":1.02468,"vector_lines":708,"snap_max_px":3.65,"snap_mean_px":1.01,"wall_support_mean":0.9,"walls_low_support":[[90,335,129,482,0.0],[126,1095,209,1112,0.51],[51,1100,58,1112,0.5],[650,790,662,812,0.36]],"dims":[{"name":"A.1 larghezza (150+190)","printed":340,"model":339.9,"delta":-0.1},{"name":"A.1 parete ovest - parete RX (150+147)","printed":297,"model":296.1,"delta":-0.9},{"name":"A.2 parete RX - parete est (199+95)","printed":294,"model":293.8,"delta":-0.2},{"name":"A.3 larghezza (97+310)","printed":407,"model":407.5,"delta":0.5},{"name":"A.4 larghezza (100+240)","printed":340,"model":339.9,"delta":-0.1},{"name":"A.4 profondita (182+158)","printed":340,"model":339.9,"delta":-0.1}],"chairs":{"A.1":1.8,"A.2":0.8,"A.3":2.2,"A.4":4.2}}};
@@ -113,7 +116,7 @@ renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.
 view.appendChild(renderer.domElement);
 const scene=new THREE.Scene();scene.background=new THREE.Color('#cfe2ee');
 scene.environment=new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(),0.04).texture;
-const cam=new THREE.PerspectiveCamera(68,1,0.05,120);cam.rotation.order='YXZ';
+const cam=new THREE.PerspectiveCamera(68,1,0.1,70);cam.rotation.order='YXZ';
 
 scene.add(new THREE.HemisphereLight(0xffffff,0xb9b4aa,0.95),new THREE.AmbientLight(0xffffff,0.22));
 // Sun from the south-west, low: north is not on the drawing, assumed up the sheet.
@@ -169,7 +172,7 @@ const M={
   mirror:std({color:0xe4ebef,metalness:1,roughness:.04}),light:std({color:0xffffff,emissive:0xfff3dc,emissiveIntensity:1.4}),
   warm:std({color:0xfff0d0,emissive:0xffcf8a,emissiveIntensity:1.1}),leaf:std({color:0x3f7a4d,roughness:.8,flatShading:true}),leaf2:std({color:0x5b9a5f,roughness:.8,flatShading:true}),
   pot:std({color:0xe9e6df,roughness:.6}),frame:std({color:0x2a2c2e,roughness:.5}),art:[std({roughness:.9}),std({roughness:.9}),std({roughness:.9})],
-  lead:std({roughness:.93}),
+  lead:std({roughness:.93}),leadB:std({roughness:.93}),
 };
 const STYLES={
   nordico:{n:'Nordico',wall:'#f1eee7',hall:['planks',['#cda676','#a9814f']],clin:['resin',['#e4e7e3','#c3cac5']],wet:['tiles',['#ecebe6','#c4c2ba']],
@@ -182,9 +185,11 @@ const STYLES={
     cab:'#fbfbfb',wood:['planks',['#3f2c20','#2b1d14']],counter:['marble',['#1d1e21','#8b8f96']],uph:'#1f5266',fabric:['fabric',['#2c3b4b','#17222e']],
     rug:['rug',['#2c3b4b','#d2b064']],accent:'#d2b064',metal:['#c9cdd1',.95,.2],art:['#e1e6ea','#1f5266','#d2b064','#1d1e21']},
 };
-let styleKey='nordico';
+let styleKey='nordico',showLead=false;
+// lead-lined walls as in the EA1 legend: red 0.60 mm, blue 1.4 mm Pb equivalent
+function paintLead(){const s=STYLES[styleKey];M.lead.color.set(showLead?'#d9455a':s.wall);M.leadB.color.set(showLead?'#3d8be0':s.wall)}
 function applyStyle(k){styleKey=k;const s=STYLES[k];texCache.splice(0).forEach(t=>t.dispose());
-  M.wall.color.set(s.wall);M.lead.color.set(s.wall);M.cab.color.set(s.cab);M.uph.color.set(s.uph);M.accent.color.set(s.accent);
+  M.wall.color.set(s.wall);paintLead();M.cab.color.set(s.cab);M.uph.color.set(s.uph);M.accent.color.set(s.accent);
   M.metal.color.set(s.metal[0]);M.metal.metalness=s.metal[1];M.metal.roughness=s.metal[2];
   [['hall',1],['clin',2],['wet',3],['wood',4],['counter',5],['fabric',6],['rug',7]].forEach(([m,seed])=>{M[m].map=makeTex(s[m],seed);M[m].needsUpdate=true});
   M.art.forEach((m,i)=>{m.map=makeTex(['art',s.art],20+i,i);m.needsUpdate=true});
@@ -203,7 +208,7 @@ function grp(px,py,rot=0,parent=scene){const g=new THREE.Group();g.position.set(
 const face=(nx,nz)=>Math.atan2(nx,nz);              // rotation that turns local +Z towards (nx,nz)
 
 // walls, windows, doors
-GEO.walls.forEach(([a,b,c,d,t])=>{boxR(a,b,c,d,0,H,t==='s'?M.core:(t==='r'||t==='b')?M.lead:M.wall);col(a,b,c,d)});
+GEO.walls.forEach(([a,b,c,d,t])=>{boxR(a,b,c,d,0,H,t==='s'?M.core:t==='r'?M.lead:t==='b'?M.leadB:M.wall);col(a,b,c,d)});
 GEO.windows.forEach(([a,b,c,d],i)=>{const m=i===10?M.core:M.wall;boxR(a,b,c,d,0,SILL,m);boxR(a,b,c,d,WTOP,H,m);col(a,b,c,d);
   const horiz=c-a>d-b,mx=(a+c)/2,my=(b+d)/2,g=boxR(horiz?a:mx-1,horiz?my-1:b,horiz?c:mx+1,horiz?my+1:d,SILL,WTOP,M.glass);g.castShadow=false;
   const L=(horiz?c-a:d-b)*K,fr=(w,h,ox,oy)=>{const f=box(horiz?w:.05,h,horiz?.05:w,M.metal,scene,X(mx)+(horiz?ox:0),oy,Z(my)+(horiz?0:ox));f.castShadow=false};
@@ -214,6 +219,10 @@ GEO.doors.forEach(([x0,y0,x1,y1,h,dir,kind,key])=>{const horiz=(x1-x0)>(y1-y0),l
   const hp={L:[x0,(y0+y1)/2],R:[x1,(y0+y1)/2],T:[(x0+x1)/2,y0],B:[(x0+x1)/2,y1]}[h],base={L:0,R:Math.PI,T:-Math.PI/2,B:Math.PI/2}[h],sgn={L:-dir,R:dir,T:dir,B:-dir}[h];
   const piv=grp(hp[0],hp[1],base+sgn*1.5);box(len,DH-.02,.04,M.wood,piv,len/2,DH/2,0);box(.02,.03,.14,M.metal,piv,len-.08,1.02,0)});
 
+// EA1 symbols shown with the lead walls: key switches (violet) and panoramic control unit (orange)
+const tech=new THREE.Group();tech.visible=false;scene.add(tech);
+const plate=(px,py,nx,nz,c)=>{const g=grp(px,py,face(nx,nz),tech);box(.1,.1,.02,std({color:c,emissive:c,emissiveIntensity:.6}),g,0,1.2,.012).castShadow=false};
+[[295,607,0,1],[628,589.5,0,1],[635.5,1372,-1,0],[461,1420,-1,0]].forEach(q=>plate(...q,0xb000ff));plate(585,589.5,0,1,0xff9a3c);
 // rooms: rects are net interior faces (px); floor kind; tour data
 const ROOMS={
   mach:{n:'Sala macchine',rects:[[51,1112,303,1212],[208,1095,303,1112]],floor:'core',look:[100,1150],p:'Compressore e aspirazione stanno fuori dall’area clinica, in un locale insonorizzato. L’aria aspirata esce con filtro HEPA H14.'},
@@ -232,6 +241,14 @@ const ROOMS={
   ster:{n:'Sterilizzazione',rects:[[129,1251,358.5,1522]],floor:'clin',look:[200,1330],p:'Al centro tra gli ambulatori: banco a L con lavello, autoclave e sigillatrice.'},
 };
 for(const r of Object.values(ROOMS)){r.m2=r.rects.reduce((s,[a,b,c,d])=>s+(c-a)*(d-b),0)*K*K;r.ft2=r.m2*10.7639}
+// what the tour looks at in each room: [px,py,height m]. The camera pitches down to low objects (WC, basin, seats).
+const VIEWS={mach:[[92,1106,1.1],[288,992,1.3]],hall:[[268,612,1.2],[500,738,1.1],[560,676,1.5]],
+  a1:[[272,300,.75],[200,575,.95],[186,131,1.45],[416,334,1.6]],rx:[[512,255,1.45],[455,392,.45]],
+  a2:[[752,340,.75],[800,552,.95],[868,315,1.4],[704,228,1.5]],wait:[[712,634,.6],[822,634,.6],[766,592,1.5],[848,640,1.2]],
+  wc:[[862,861,.35],[835,820,.85],[737,968,.85],[737,985,1.5]],cor:[[612,1170,1.4],[540,930,1.5],[540,1090,1.5]],
+  office:[[778,1360,.8],[842,1360,.7],[815,1203,1.1],[760,1452,1.5]],a3:[[625,1650,.75],[770,1492,.95],[704,1766,1.5],[475,1617,1.4]],
+  a4:[[282,1738,.75],[225,1558,.95],[295,1864,1.5],[131,1817,1.4]],ster:[[277,1279,.98],[160,1350,1.15],[160,1450,1.05],[110,1460,1.5]]};
+for(const k in VIEWS)ROOMS[k].views=VIEWS[k];
 function roomAt(x,z){const px=x/K+CX,py=z/K+CY;for(const k in ROOMS)if(ROOMS[k].rects.some(([a,b,c,d])=>px>=a&&px<=c&&py>=b&&py<=d))return k;return null}
 
 // floors (UV in metres so textures keep their real size)
@@ -283,6 +300,7 @@ function pc(px,py,nx,nz){const g=grp(px,py,face(nx,nz));box(.54,.33,.025,M.dark,
 function wallMonitor(px,py,nx,nz){const g=grp(px,py,face(nx,nz));box(.92,.55,.04,M.dark,g,0,1.4,.03);box(.88,.51,.008,M.screen,g,0,1.4,.053).castShadow=false}
 function endoral(px,py,nx,nz){const g=grp(px,py,face(nx,nz));rb(.22,.3,.07,.02,M.equip,g,0,1.65,.035);const a=box(.05,.05,.62,M.equip,g,.0,1.72,.36);
   const b=box(.05,.05,.55,M.equip,g,.19,1.6,.84);b.rotation.y=.75;cyl(.012,.2,M.steel,g,0,1.6,.66);rb(.16,.2,.2,.04,M.equip,g,.38,1.46,1.02);cyl(.035,.2,M.equip,g,.38,1.3,1.06,.06).rotation.x=.5}
+const UNITS=[];
 function dentalUnit(e){const [bx,by]=e.box,[hx,hy]=e.head,g=grp(bx,by,Math.atan2(hx-bx,hy-by));
   box(.22,.02,.22,M.dark,g,0,.01,0);rb(.56,.1,.95,.04,M.equip,g,0,.05,.62);rb(.3,.36,.42,.06,M.equip,g,0,.28,.62);
   const pts=[[-.28,.40],[.28,.55],[.62,.52],[.82,.55],[1.42,.92]],sh=new THREE.Shape();pts.forEach(([u,v],i)=>i?sh.lineTo(u,v):sh.moveTo(u,v));[...pts].reverse().forEach(([u,v])=>sh.lineTo(u+.02,v-.09));
@@ -293,10 +311,16 @@ function dentalUnit(e){const [bx,by]=e.box,[hx,hy]=e.head,g=grp(bx,by,Math.atan2
   cyl(.035,1.9,M.equip,g,-.36,.95,.5);const la=box(.06,.06,.74,M.equip,g,-.18,1.88,.82);la.rotation.y=-.5;rb(.34,.1,.2,.04,M.equip,g,0,1.74,1.06).rotation.x=.5;box(.28,.012,.14,M.light,g,0,1.685,1.085).rotation.x=.5;
   rb(.3,.78,.34,.05,M.equip,g,-.46,.39,.86);cyl(.12,.06,M.ceramic,g,-.46,.81,.98,.08);cyl(.008,.14,M.steel,g,-.46,.9,.86);
   cyl(.2,.07,M.uph,g,.72,.5,1.36);cyl(.025,.42,M.steel,g,.72,.26,1.36);cyl(.27,.03,M.dark,g,.72,.04,1.36,.27,5);
-  g.updateMatrixWorld(true);const c=g.localToWorld(V3(0,0,.66)),s=g.localToWorld(V3(.72,0,1.36));CCIR.push([c.x,c.z,.5],[s.x,s.z,.24])}
+  g.updateMatrixWorld(true);const c=g.localToWorld(V3(0,0,.66)),s=g.localToWorld(V3(.72,0,1.36));CCIR.push([c.x,c.z,.5],[s.x,s.z,.24]);UNITS.push(g)}
 
 const q=1/GEO.CM;                                     // px per cm: offsets below are the dimensions printed on EA1
 Object.values(GEO.eq).forEach(dentalUnit);
+// Upgrade: dental unit and stool exported from the Blender scene (Sketchfab models, CC BY). The procedural unit stays if the files are missing.
+{const byName={'Laccato bianco':M.equip,'Similpelle teal':M.uph,'Metallo':M.steel,'Acciaio':M.steel,'Scuro':M.dark},gl=new GLTFLoader();
+ const fit=o=>{o.traverse(m=>{if(m.isMesh){m.material=byName[m.material.name]||M.equip;m.castShadow=m.receiveShadow=true}});return o};
+ Promise.all(['riunito.glb','sgabello.glb'].map(u=>gl.loadAsync(u))).then(([a,b])=>{fit(a.scene);fit(b.scene);
+   UNITS.forEach(g=>{g.clear();box(.22,.02,.22,M.dark,g,0,.01,0);g.add(a.scene.clone());const st=b.scene.clone();st.position.set(.82,0,1.3);g.add(st)});
+   renderer.shadowMap.needsUpdate=true;window.__check.glb=true}).catch(e=>{window.__check.glb=String(e)})}
 // A.1
 cabinet([129,540,290,595],'N',{upper:1});cabinet([129,433,183,490],'E',{h:2.1});sink(168,566,0,-1);pc(129+140*q,572,0,-1);
 wallMonitor(186,129,0,1);endoral(418,129+210*q,-1,0);art(129,395,1,0,.5,.7,0);
@@ -326,7 +350,9 @@ wcRoom(811.5,987,1);wcRoom(1009.5,1185,-1);
 {const g=grp(778,1360,0);box(.66,.04,1.24,M.wood,g,0,.74,0);box(.6,.72,.04,M.wood,g,0,.36,-.58);box(.6,.72,.04,M.wood,g,0,.36,.58);box(.32,.015,.22,M.dark,g,.05,.77,0);box(.3,.2,.01,M.screen,g,.2,.87,0).rotation.y=Math.PI/2;
  cyl(.07,.015,M.metal,g,-.1,.77,-.42);cyl(.008,.34,M.metal,g,-.1,.94,-.42);mesh(new THREE.ConeGeometry(.1,.13,18,1,true),M.warm,g,false).position.set(-.1,1.12,-.42);col(745,1298,811,1422)}
 chairSimple(842,1360,face(-1,0),M.uph);chairSimple(700,1395,face(1,0));rug(690,1290,860,1430);plant(668,1432,2);art(760,1454.5,0,-1,.9,.55,0,1.55);
-{const g=grp(815,1197,0);box(1.0,1.6,.3,M.wood,g,0,.8,.15);for(let s=0;s<4;s++){box(.94,.3,.02,M.dark,g,0,.25+s*.38,.29).castShadow=false;const r=rng(s+3);for(let i=0;i<8;i++)box(.035+r()*.03,.2+r()*.08,.18,[M.accent,M.fabric,M.uph,M.pot][i%4],g,-.4+i*.11,.2+s*.38,.18).castShadow=false}col(766,1197,864,1227)}
+{const g=grp(815,1197,0);box(1.0,1.6,.02,M.wood,g,0,.8,.01);[-.49,.49].forEach(x=>box(.02,1.6,.3,M.wood,g,x,.8,.15));   // open carcass: back, sides, shelves
+ for(let i=0;i<5;i++)box(.96,.02,.3,M.wood,g,0,.03+i*.39,.15);
+ for(let i=0;i<4;i++){const r=rng(i+3);for(let j=0;j<8;j++){const h=.2+r()*.1;box(.035+r()*.03,h,.18,[M.accent,M.fabric,M.uph,M.pot][j%4],g,-.4+j*.11,.04+i*.39+h/2,.14).castShadow=false}}col(766,1197,864,1227)}
 // disimpegno sud
 bench(400,1253,520,1293);art(460,1251,0,1,.9,.55,2,1.55);plant(548,1268,2);rug(385,1305,620,1385);
 // sterilizzazione: no soft furnishing, as in a real reprocessing room
@@ -364,15 +390,16 @@ function setMode(m){if(m===mode&&m!=='tour')return;const from=mode;mode=m;orbit.
 const fade={v:1,to:1};
 // tour: polyline through the doors; a third entry pauses in that room
 const TOUR=[[170,1000,'mach'],[176,880],[176,764],[176,700],[240,690,'hall'],[370,676],[370,560],[330,500,'a1'],[370,560],[370,655],[500,655],[479,540],[479,480],[490,445,'rx'],[479,480],[479,540],[540,530],[600,530],[640,480,'a2'],
-  [600,530],[540,530],[540,655],[612,700],[640,748],[680,748],[720,730,'wait'],[680,748],[640,748],[612,800],[612,860],[700,860],[735,870,'wc'],[700,860],[612,860],[612,1000,'cor'],[612,1225],[625,1245],[670,1245],[690,1290,'office'],
+  [600,530],[540,530],[540,655],[612,700],[640,748],[680,748],[720,730,'wait'],[680,748],[640,748],[612,800],[612,860],[700,860],[722,884,'wc'],[700,860],[612,860],[612,1000,'cor'],[612,1225],[625,1245],[670,1245],[690,1290,'office'],
   [670,1245],[625,1245],[560,1325],[524,1368],[524,1440],[540,1500,'a3'],[524,1440],[524,1368],[412,1368],[412,1500],[412,1570],[400,1620,'a4'],[412,1570],[412,1500],[400,1340],[320,1350,'ster']];
 const tour={i:0,pause:0,room:null,sweep:0};
 const yawTo=(dx,dz)=>Math.atan2(-dx,-dz), angd=(a,b)=>{let d=(a-b)%(2*Math.PI);if(d>Math.PI)d-=2*Math.PI;if(d<-Math.PI)d+=2*Math.PI;return d};
 function tourStart(){tour.i=0;me.x=X(TOUR[0][0]);me.z=Z(TOUR[0][1]);me.pitch=0;me.yaw=yawTo(X(92)-me.x,Z(1106)-me.z);tourPause(TOUR[0][2]);startMusic()}
-function tourPause(k){tour.pause=4.6;tour.room=k;tour.sweep=0;showCard(k)}
+const VIEW_T=2.5;function tourPause(k){tour.pause=1+VIEW_T*ROOMS[k].views.length;tour.room=k;tour.sweep=0;showCard(k)}
 function tourStep(dt){
-  if(tour.pause>0){tour.pause-=dt;tour.sweep+=dt;const r=ROOMS[tour.room],t=yawTo(X(r.look[0])-me.x,Z(r.look[1])-me.z)+Math.sin(tour.sweep*.75)*.55;
-    me.yaw+=angd(t,me.yaw)*Math.min(1,dt*1.6);if(tour.pause<=0)hideCard();return}
+  if(tour.pause>0){tour.pause-=dt;tour.sweep+=dt;const vs=ROOMS[tour.room].views,v=vs[Math.min(vs.length-1,tour.sweep/VIEW_T|0)],dx=X(v[0])-me.x,dz=Z(v[1])-me.z,k=Math.min(1,dt*1.9);
+    me.yaw+=angd(yawTo(dx,dz),me.yaw)*k;me.pitch+=(Math.max(-1.05,Math.atan2(v[2]-EYE,Math.hypot(dx,dz)))-me.pitch)*k;if(tour.pause<=0)hideCard();return}
+  me.pitch+=(-.05-me.pitch)*Math.min(1,dt*2.5);
   const n=TOUR[tour.i+1];if(!n){setMode('doll');return}
   const dx=X(n[0])-me.x,dz=Z(n[1])-me.z,d=Math.hypot(dx,dz),s=1.25*dt;
   me.yaw+=angd(yawTo(dx,dz),me.yaw)*Math.min(1,dt*3.2);
@@ -418,6 +445,9 @@ $('bMute').onclick=()=>{if(!actx){muted=false;startMusic()}else setMute(!muted)}
 Object.entries(STYLES).forEach(([k,s])=>{const b=document.createElement('button');b.textContent=s.n;b.dataset.k=k;b.onclick=()=>{if(k===styleKey)return;$('veil').style.opacity=1;setTimeout(()=>{applyStyle(k);$('veil').style.opacity=0},290)};$('styles').appendChild(b)});
 $('bTour').onclick=()=>{if(mode==='tour'){hideCard();setMode('walk')}else setMode('tour')};
 $('bView').onclick=()=>setMode(mode==='doll'?'walk':'doll');
+$('bLead').onclick=()=>{showLead=!showLead;paintLead();tech.visible=showLead;$('bLead').setAttribute('aria-pressed',String(showLead));
+  $('hint').textContent=showLead?'Rosso: parete 0,60 mm Pb eq. · Blu: 1,4 mm Pb eq. · Viola: comando a chiave · Arancio: centralina panoramico':'Piombature nascoste';
+  $('hint').style.opacity=1;clearTimeout(setMode.h);setMode.h=setTimeout(()=>$('hint').style.opacity=0,showLead?9000:2500)};
 $('bCheck').onclick=()=>{const v=$('verify');v.hidden=!v.hidden;$('bCheck').setAttribute('aria-pressed',String(!v.hidden));$('card').classList.toggle('low',!v.hidden)};
 $('vPlan').onchange=e=>{const on=e.target.checked;plan.visible=on;floors.visible=!on;deco.visible=!on;if(on&&mode!=='doll')setMode('doll');renderer.shadowMap.needsUpdate=true};
 
@@ -432,12 +462,12 @@ function renderVerify(){const worst=Math.max(...chk.dims.map(d=>Math.abs(d.delta
   $('vDoors').textContent=GEO.doors.map(d=>`${d[7]} ${Math.round(Math.max(d[2]-d[0],d[3]-d[1])*GEO.CM)} cm`).join(' · ')}
 function renderRun(){$('vRun').innerHTML=`Percorso del tour: ${TOUR.length-1} tratti, <b class="${pathBad.length?'bad':'ok'}">${pathBad.length} urti</b> contro muri o arredi.<br>Fluidità misurata ora: <b>${fps?Math.round(fps):'…'} fps</b>.`}
 renderVerify();
-window.__check={scene,M,pathBad,get fps(){return fps},rooms:Object.fromEntries(Object.entries(ROOMS).map(([k,r])=>[k,+r.m2.toFixed(2)])),hit,me,setMode,meshes:()=>{let n=0;scene.traverse(o=>o.isMesh&&n++);return n}};
+window.__check={scene,M,tour,pathBad,get fps(){return fps},rooms:Object.fromEntries(Object.entries(ROOMS).map(([k,r])=>[k,+r.m2.toFixed(2)])),hit,me,setMode,meshes:()=>{let n=0;scene.traverse(o=>o.isMesh&&n++);return n}};
 
 // ---------- loop ----------
 function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix()}
 addEventListener('resize',resize);resize();applyStyle('nordico');
-cam.position.set(me.x,EYE,me.z);cam.quaternion.copy(walkQuat());setMode.h=setTimeout(()=>$('hint').style.opacity=0,6000);$('stick').hidden=!coarse;if(coarse)$('hint').textContent='Joystick per muoverti, trascina per guardare';
+setMode('doll');cam.position.copy(tw.p1);cam.quaternion.copy(tw.q1);tw.t=1;tw.done();tw.done=null;fade.v=fade.to=0;M.ceil.opacity=0;ceil.visible=false;$('stick').hidden=!coarse;if(coarse)$('hint').textContent='Joystick per muoverti, trascina per guardare';
 const clock=new THREE.Clock(),ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;let acc=0,frames=0;
 function frame(dt,draw=true){
   acc+=dt;frames++;if(acc>=1){fps=frames/acc;acc=frames=0;if(!$('verify').hidden)renderRun()}
@@ -447,6 +477,7 @@ function frame(dt,draw=true){
     cam.position.lerpVectors(tw.p0,tw.p1,k);cam.quaternion.slerpQuaternions(tw.q0,tw.q1,k);if(mode==='tour')tourStep(dt);if(tw.t===1&&tw.done){tw.done();tw.done=null}}
   else if(mode==='doll')orbit.update();
   else{if(mode==='tour')tourStep(dt);else walkStep(dt);cam.position.set(me.x,EYE,me.z);cam.quaternion.copy(walkQuat())}
+  const fv=mode==='tour'&&tour.pause>0?76:68;if(Math.abs(cam.fov-fv)>.05){cam.fov+=(fv-cam.fov)*Math.min(1,dt*2);cam.updateProjectionMatrix()}
   if(draw)renderer.render(scene,cam)}
 function tick(){frame(Math.min(clock.getDelta(),.05));requestAnimationFrame(tick)}
 // deterministic stepping for tests: runs the same frame() the browser runs

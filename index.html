@@ -318,7 +318,7 @@ Object.values(GEO.eq).forEach(dentalUnit);
 // Upgrade: dental unit and stool exported from the Blender scene (Sketchfab models, CC BY). The procedural unit stays if the files are missing.
 {const byName={'Laccato bianco':M.equip,'Similpelle teal':M.uph,'Metallo':M.steel,'Acciaio':M.steel,'Scuro':M.dark},gl=new GLTFLoader();
  const fit=o=>{o.traverse(m=>{if(m.isMesh){m.material=byName[m.material.name]||M.equip;m.castShadow=m.receiveShadow=true}});return o};
- Promise.all(['riunito.glb','sgabello.glb'].map(u=>gl.loadAsync(u))).then(([a,b])=>{fit(a.scene);fit(b.scene);
+ Promise.all(['riunito.json','sgabello.json'].map(u=>gl.loadAsync(u))).then(([a,b])=>{fit(a.scene);fit(b.scene);
    UNITS.forEach(g=>{g.clear();box(.22,.02,.22,M.dark,g,0,.01,0);g.add(a.scene.clone());const st=b.scene.clone();st.position.set(.82,0,1.3);g.add(st)});
    renderer.shadowMap.needsUpdate=true;window.__check.glb=true}).catch(e=>{window.__check.glb=String(e)})}
 // A.1

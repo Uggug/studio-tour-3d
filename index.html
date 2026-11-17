@@ -47,6 +47,12 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 #card .sz{font:12px var(--f-mono);color:var(--accent);margin:2px 0 4px}
 #card p{margin:0;font-size:14px;line-height:1.4}
 #card .as{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--warn);margin-top:5px}
+#labels{position:fixed;inset:0;pointer-events:none;z-index:2;overflow:hidden}
+.rl{position:absolute;left:0;top:0;font:500 11px var(--f-ui);background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:2px 6px;white-space:nowrap;opacity:.92}
+.rl.on{background:var(--accent);color:var(--bg);border-color:var(--accent);opacity:1}
+#info{position:fixed;left:max(12px,env(safe-area-inset-left,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));width:min(230px,calc(100% - 24px));box-sizing:border-box;
+  background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px;z-index:5;font-size:12px;line-height:1.35;pointer-events:none}
+#info h2{margin:0;font-size:13px;font-weight:600} #info .sz{font:11px var(--f-mono);color:var(--accent);margin:2px 0} #info p{margin:0}
 .bar .hintrow{flex-basis:100%;text-align:center;pointer-events:none}
 #hint{display:inline-block;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:5px 14px;font-size:12px;color:var(--muted);transition:opacity .5s}
 #verify{position:fixed;right:max(16px,env(safe-area-inset-right,0px));top:calc(64px + env(safe-area-inset-top,0px));width:min(380px,calc(100vw - 32px));
@@ -75,6 +81,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   <div class="grp dd"><button id="bLayers" aria-haspopup="true" aria-expanded="false">Livelli &#9662;</button><div id="layers" class="menu" hidden><button id="bLead" aria-pressed="false">Piombature</button><button id="bSvc" aria-pressed="false">Impianti</button><button id="bCheck" aria-pressed="false">Verifica</button></div></div>
   <div class="hintrow"><span id="hint">Clicca nella scena, poi WASD e mouse per camminare</span></div>
 </div>
+<div id="labels"></div>
+<div id="info" aria-live="polite" hidden><h2 id="iN"></h2><div class="sz" id="iS"></div><p id="iP"></p></div>
 <div id="card" class="off" aria-live="polite"><h2 id="cN"></h2><div class="sz" id="cS"></div><p id="cP"></p><div class="as" id="cA" hidden></div></div>
 <aside id="verify" hidden>
   <h2>Verifica sulla tavola EA1</h2>
@@ -265,7 +273,7 @@ const VIEWS={land:[[177,760,1.35],[92,1106,1.1],[177,760,1.35]],mach:[[92,1106,1
   office:[[778,1360,.8],[842,1360,.7],[815,1203,1.1],[760,1452,1.5]],a3:[[625,1650,.75],[770,1492,.95],[704,1766,1.5],[475,1617,1.4]],
   a4:[[282,1738,.75],[225,1558,.95],[295,1864,1.5],[131,1817,1.4]],ster:[[277,1279,.98],[160,1350,1.15],[160,1450,1.05],[110,1460,1.5]]};
 for(const k in VIEWS)ROOMS[k].views=VIEWS[k];
-function roomAt(x,z){const px=x/K+CX,py=z/K+CY;for(const k in ROOMS)if(ROOMS[k].rects.some(([a,b,c,d])=>px>=a&&px<=c&&py>=b&&py<=d))return k;return null}
+function roomAt(x,z,R=ROOMS){const px=x/K+CX,py=z/K+CY;for(const k in R)if(R[k].rects.some(([a,b,c,d])=>px>=a&&px<=c&&py>=b&&py<=d))return k;return null}
 
 // floors (UV in metres so textures keep their real size)
 let floors=new THREE.Group();ROOT.add(floors);
@@ -399,10 +407,10 @@ function flyHome(){const p=dollPos(),t=new THREE.PerspectiveCamera();t.position.
   tween(p,t.quaternion,()=>{fly.p.copy(cam.position);const e=new THREE.Euler().setFromQuaternion(cam.quaternion,'YXZ');fly.yaw=e.y;fly.pitch=e.x})}
 function walkQuat(){return new THREE.Quaternion().setFromEuler(new THREE.Euler(me.pitch,me.yaw,0,'YXZ'))}
 function tween(p1,q1,done){tw.p0.copy(cam.position);tw.q0.copy(cam.quaternion);tw.p1.copy(p1);tw.q1.copy(q1);tw.t=0;tw.done=done}
-function setMode(m){if(m===mode&&m!=='tour')return;if(all&&m!=='doll')exitAll();const from=mode;mode=m;ptr.clear();document.exitPointerLock?.();
+function setMode(m){if(m===mode&&m!=='tour')return;if(all&&m!=='doll')exitAll();if(m!=='doll')select();const from=mode;mode=m;ptr.clear();document.exitPointerLock?.();
   $('bView').setAttribute('aria-pressed',String(m==='doll'));$('bView').innerHTML=m==='doll'?'Entra<span class="lg"> e cammina</span>':'<span class="lg">Vista dall’alto</span><span class="sm">Dall’alto</span>';
   $('bTour').innerHTML=m==='tour'?'&#9632; <span class="lg">Ferma tour</span><span class="sm">Stop</span>':'&#9654; <span class="lg">Avvia tour</span><span class="sm">Tour</span>';
-  $('hint').textContent=m==='tour'?'Tour guidato in corso':coarse?'Un dito: guarda intorno · pizzica: avanti e indietro · due dita: sposta':m==='walk'?'Clicca nella scena, poi WASD e mouse per camminare. Esc per liberare il mouse':'Trascina: guarda intorno · rotella: avvicina · tasto destro: sposta · WASD: muoviti · Q/E: giù e su';
+  $('hint').textContent=m==='tour'?'Tour guidato in corso':coarse?'Un dito: guarda intorno · pizzica: avanti e indietro · due dita: sposta · tocca una stanza: misure':m==='walk'?'Clicca nella scena, poi WASD e mouse per camminare. Esc per liberare il mouse':'Trascina: guarda intorno · rotella: avvicina · tasto destro: sposta · WASD: muoviti · Q/E: giù e su · clic su una stanza: misure';
   $('hint').style.opacity=1;clearTimeout(setMode.h);setMode.h=setTimeout(()=>$('hint').style.opacity=0,5200);
   if(m==='doll'){hideCard();flyHome()}
   else{ceil.visible=true;fade.to=1;if(m==='tour')tourStart();if(from==='doll'||m==='tour')tween(V3(me.x,EYE,me.z),walkQuat(),null)}}
@@ -444,7 +452,7 @@ function useFloor(k){const F=FL[k];CR=F.CR;CCIR=F.CCIR;ROOMS=F.ROOMS;floors=F.fl
 useFloor(2);ROOT=scene;
 // "all floors": the three floors stacked with a gap, seen from the front; picking one floor shows that floor alone
 const GAP=4.6;[0,1,2].forEach(k=>{FL[k].lights=[];FL[k].g.traverse(o=>{if(o.isPointLight)FL[k].lights.push(o)})});
-function layout(){[0,1,2].forEach(k=>{const F=FL[k];F.g.visible=all||k===cur;F.g.position.y=all?k*GAP:0;F.lights.forEach(l=>l.visible=!all);if(all)F.ceil.visible=false});
+function layout(){select();[0,1,2].forEach(k=>{const F=FL[k];F.g.visible=all||k===cur;F.g.position.y=all?k*GAP:0;F.lights.forEach(l=>l.visible=!all);if(all)F.ceil.visible=false});
   if(!all)ceil.visible=fade.v>0;renderer.shadowMap.needsUpdate=true}
 function label(){$('bFloor').innerHTML=(all?'<span class="lg">Tutti i piani</span><span class="sm">Tutti</span>':'<span class="lg">Piano </span><span class="sm">P</span>'+cur)+' &#9662;';
   document.querySelectorAll('#floorM button').forEach(b=>b.setAttribute('aria-pressed',String(all?b.dataset.f==='all':+b.dataset.f===cur)))}
@@ -473,7 +481,7 @@ function hideCard(){$('card').classList.add('off')}
 // input: the same gestures in both views. Drag looks around, pinch or wheel moves forward and back,
 // two fingers or right drag slide sideways, WASD moves. Nothing is anchored to a pivot.
 const ray=new THREE.Raycaster();
-const keys={};addEventListener('keydown',e=>{keys[e.code]=true;if(mode!=='tour'&&e.code.startsWith('Arrow'))e.preventDefault()});addEventListener('keyup',e=>keys[e.code]=false);
+const keys={};addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='Escape')select();if(mode!=='tour'&&e.code.startsWith('Arrow'))e.preventDefault()});addEventListener('keyup',e=>keys[e.code]=false);
 const el=renderer.domElement,ptr=new Map();let pinch=null;
 el.addEventListener('contextmenu',e=>e.preventDefault());
 el.addEventListener('click',()=>{if(mode==='walk'&&!coarse&&document.pointerLockElement!==el){try{const p=el.requestPointerLock();p&&p.catch&&p.catch(()=>{})}catch(e){}}});
@@ -484,7 +492,7 @@ function slide(dx,dy){if(mode!=='doll')return;const k=Math.max(.6,fly.p.y)*.0022
 function dolly(a,cx,cy){
   if(mode==='doll'){const r=el.getBoundingClientRect();ray.setFromCamera(new THREE.Vector2((cx-r.left)/r.width*2-1,-(cy-r.top)/r.height*2+1),cam);fly.p.addScaledVector(ray.ray.direction,a*Math.max(.8,fly.p.y)*.9)}
   else if(mode==='walk'){const dx=-Math.sin(me.yaw)*a*1.2,dz=-Math.cos(me.yaw)*a*1.2;if(!hit(me.x+dx,me.z,.22))me.x+=dx;if(!hit(me.x,me.z+dz,.22))me.z+=dz}}
-el.addEventListener('pointerdown',e=>{if(mode==='tour'||tw.t<1||document.pointerLockElement===el)return;ptr.set(e.pointerId,[e.clientX,e.clientY,e.button]);try{el.setPointerCapture(e.pointerId)}catch(x){}pinch=null});
+el.addEventListener('pointerdown',e=>{if(mode==='tour'||tw.t<1||document.pointerLockElement===el)return;ptr.set(e.pointerId,[e.clientX,e.clientY,e.button,e.clientX,e.clientY]);try{el.setPointerCapture(e.pointerId)}catch(x){}pinch=null});
 el.addEventListener('pointermove',e=>{const p=ptr.get(e.pointerId);if(!p)return;const dx=e.clientX-p[0],dy=e.clientY-p[1];p[0]=e.clientX;p[1]=e.clientY;
   if(ptr.size===1){p[2]===2?slide(dx,dy):look(dx,dy)}
   else if(ptr.size===2){const [a,b]=[...ptr.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]),mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;
@@ -493,7 +501,7 @@ el.addEventListener('pointermove',e=>{const p=ptr.get(e.pointerId);if(!p)return;
       // looking steeply down the plan turns with the fingers, like a map; otherwise the camera itself turns the way the fingers turn
       const o=mode==='doll'?fly:me;o.yaw+=(mode==='doll'&&fly.pitch<-.75?1:-1)*da}
     pinch=[d,mx,my,ang]}});
-const ptrUp=e=>{ptr.delete(e.pointerId);pinch=null};el.addEventListener('pointerup',ptrUp);el.addEventListener('pointercancel',ptrUp);
+const ptrUp=e=>{const p=ptr.get(e.pointerId);if(p&&e.type==='pointerup'&&ptr.size===1&&p[2]===0&&mode==='doll'&&Math.hypot(e.clientX-p[3],e.clientY-p[4])<6)pick(e.clientX,e.clientY);ptr.delete(e.pointerId);pinch=null};el.addEventListener('pointerup',ptrUp);el.addEventListener('pointercancel',ptrUp);
 el.addEventListener('wheel',e=>{e.preventDefault();// proportional to the scroll amount (one mouse notch is about 100 px), capped so a fast flick cannot jump
   if(tw.t>=1)dolly(-Math.max(-.15,Math.min(.15,e.deltaY*(e.deltaMode===1?33:1)*.0008)),e.clientX,e.clientY)},{passive:false});
 let lastRoom=null;
@@ -535,6 +543,30 @@ function renderRun(){$('vRun').innerHTML=`Percorsi dei tour, urti contro muri o 
 renderVerify();
 window.__check={scene,M,tour,fly,cam,pathBad,badAll,setFloor,showAll,get cur(){return cur},get all(){return all},get fps(){return fps},rooms:Object.fromEntries(Object.entries(ROOMS).map(([k,r])=>[k,+r.m2.toFixed(2)])),hit,me,setMode,meshes:()=>{let n=0;scene.traverse(o=>o.isMesh&&n++);return n}};
 
+// ---------- room titles and click-to-select (top and all-floors views) ----------
+// Titles are HTML over the canvas, projected each frame; overlapping ones give way to the nearer room.
+const LBL=[],sel={k:null,key:null},hl=new THREE.Group(),hlMat=new THREE.MeshBasicMaterial({transparent:true,opacity:.5,depthWrite:false});
+[0,1,2].forEach(k=>{for(const key in FL[k].ROOMS){const r=FL[k].ROOMS[key],[a,b,c,d]=r.rects[0],e=document.createElement('div');e.className='rl';e.textContent=r.n;$('labels').appendChild(e);
+  LBL.push({k,key,e,x:X((a+c)/2),z:Z((b+d)/2),w:e.offsetWidth})}});
+function select(k,key){hl.children.forEach(m=>m.geometry.dispose());hl.clear();hl.removeFromParent();sel.k=k;sel.key=key;
+  LBL.forEach(l=>l.e.classList.toggle('on',key!=null&&l.k===k&&l.key===key));$('info').hidden=key==null;renderer.shadowMap.needsUpdate=true;if(key==null)return;
+  const r=FL[k].ROOMS[key];hlMat.color.set(getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
+  r.rects.forEach(([a,b,c,d])=>{const g=new THREE.PlaneGeometry((c-a)*K,(d-b)*K);g.rotateX(-Math.PI/2);const m=new THREE.Mesh(g,hlMat);m.position.set(X((a+c)/2),.03,Z((b+d)/2));hl.add(m)});FL[k].g.add(hl);
+  const xs=r.rects.flatMap(q=>[q[0],q[2]]),ys=r.rects.flatMap(q=>[q[1],q[3]]),f=n=>n.toFixed(2).replace('.',',');
+  $('iN').textContent=r.n;$('iS').textContent=`Piano ${k} · ${r.m2.toFixed(1).replace('.',',')} m² · ${r.rects.length>1?'ingombro ':''}${f((Math.max(...xs)-Math.min(...xs))*K)} × ${f((Math.max(...ys)-Math.min(...ys))*K)} m · h ${f(H)} m`;
+  $('iP').textContent=[r.p,r.note].filter(Boolean).join(' ')}
+// a click picks the room under the pointer: upper floors first, because they hide the lower ones
+function pick(cx,cy){const r=el.getBoundingClientRect();ray.setFromCamera(new THREE.Vector2((cx-r.left)/r.width*2-1,-(cy-r.top)/r.height*2+1),cam);const o=ray.ray.origin,d=ray.ray.direction;
+  for(const k of [2,1,0]){const F=FL[k];if(!F.g.visible||d.y>=0)continue;const t=(F.g.position.y-o.y)/d.y;if(t<=0)continue;const key=roomAt(o.x+d.x*t,o.z+d.z*t,F.ROOMS);
+    if(key)return sel.k===k&&sel.key===key?select():select(k,key)}
+  select()}
+function labels(){const on=mode==='doll';$('labels').hidden=!on;if(!on)return;const w=innerWidth,h=innerHeight,put=[];
+  const L=LBL.map(l=>({l,v:V3(l.x,FL[l.k].g.position.y+.1,l.z).project(cam),s:l.k===sel.k&&l.key===sel.key})).sort((a,b)=>b.s-a.s||a.v.z-b.v.z);
+  for(const {l,v,s} of L){let ok=FL[l.k].g.visible&&v.z<1&&Math.abs(v.x)<1&&Math.abs(v.y)<1;const x=(v.x+1)/2*w,y=(1-v.y)/2*h,hw=l.w/2+3;
+    if(ok&&!s)ok=!put.some(q=>Math.abs(q[0]-x)<q[2]+hw&&Math.abs(q[1]-y)<20);
+    l.e.style.display=ok?'':'none';if(ok){put.push([x,y,hw]);l.e.style.transform=`translate(${x|0}px,${y|0}px) translate(-50%,-50%)`}}}
+Object.assign(__check,{select,pick,sel,LBL});
+
 // ---------- loop ----------
 function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix()}
 addEventListener('resize',resize);resize();applyStyle('nordico');
@@ -551,7 +583,7 @@ function frame(dt,draw=true){
     fly.p.set(Math.max(-45,Math.min(45,fly.p.x)),Math.max(.5,Math.min(45,fly.p.y)),Math.max(-45,Math.min(45,fly.p.z)));cam.position.copy(fly.p);cam.rotation.set(fly.pitch,fly.yaw,0)}
   else{if(mode==='tour')tourStep(dt);else walkStep(dt);cam.position.set(me.x,EYE,me.z);cam.quaternion.copy(walkQuat())}
   const fv=mode==='tour'&&tour.pause>0?76:68;if(Math.abs(cam.fov-fv)>.05){cam.fov+=(fv-cam.fov)*Math.min(1,dt*2);cam.updateProjectionMatrix()}
-  if(draw)renderer.render(scene,cam)}
+  labels();if(draw)renderer.render(scene,cam)}
 function tick(){frame(Math.min(clock.getDelta(),.05));requestAnimationFrame(tick)}
 // deterministic stepping for tests: runs the same frame() the browser runs
 __check.step=(n,dt=.05)=>{for(let i=0;i<n;i++)frame(dt,i===n-1)};

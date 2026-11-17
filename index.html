@@ -71,7 +71,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   <div class="brand"><h1>Poliambulatorio Mercanzin</h1><div>piani 0 · 1 · 2 · scala 1:50 · h 2,70 m ipotizzata</div></div>
   <div class="grp"><button id="bTour" class="primary">&#9654; Avvia tour</button><button id="bView" aria-pressed="false">Vista dall'alto</button></div>
   <div class="grp dd"><button id="bStyle" aria-haspopup="listbox" aria-expanded="false" aria-label="Stile"></button><div id="styles" class="menu" role="listbox" hidden></div></div>
-  <div class="grp dd"><button id="bFloor" aria-haspopup="listbox" aria-expanded="false" aria-label="Piano">Piano 2 &#9662;</button><div id="floorM" class="menu" role="listbox" hidden><button data-f="0" role="option">Piano 0 · terra</button><button data-f="1" role="option">Piano 1 · visite specialistiche</button><button data-f="2" role="option">Piano 2 · odontoiatria</button></div></div>
+  <div class="grp dd"><button id="bFloor" aria-haspopup="listbox" aria-expanded="false" aria-label="Piano">Piano 2 &#9662;</button><div id="floorM" class="menu" role="listbox" hidden><button data-f="all" role="option">Tutti i piani</button><button data-f="0" role="option">Piano 0 · terra</button><button data-f="1" role="option">Piano 1 · visite specialistiche</button><button data-f="2" role="option">Piano 2 · odontoiatria</button></div></div>
   <div class="grp dd"><button id="bLayers" aria-haspopup="true" aria-expanded="false">Livelli &#9662;</button><div id="layers" class="menu" hidden><button id="bLead" aria-pressed="false">Piombature</button><button id="bSvc" aria-pressed="false">Impianti</button><button id="bCheck" aria-pressed="false">Verifica</button></div></div>
   <div class="hintrow"><span id="hint">Clicca nella scena, poi WASD e mouse per camminare</span></div>
 </div>
@@ -125,7 +125,7 @@ const cam=new THREE.PerspectiveCamera(68,1,0.1,70);cam.rotation.order='YXZ';
 scene.add(new THREE.HemisphereLight(0xffffff,0xb9b4aa,0.95),new THREE.AmbientLight(0xffffff,0.22));
 // Sun from the south-west, low: north is not on the drawing, assumed up the sheet.
 const sun=new THREE.DirectionalLight(0xfff0d8,2.8);sun.position.set(-9,8.5,11);sun.castShadow=true;
-sun.shadow.mapSize.set(coarse?1024:2048,coarse?1024:2048);Object.assign(sun.shadow.camera,{left:-11,right:11,top:11,bottom:-11,near:1,far:40});
+sun.shadow.mapSize.set(coarse?1024:2048,coarse?1024:2048);Object.assign(sun.shadow.camera,{left:-20,right:20,top:20,bottom:-20,near:1,far:70});
 sun.shadow.bias=-0.0005;sun.shadow.normalBias=0.02;sun.shadow.radius=4;scene.add(sun);
 
 // ---------- procedural textures ----------
@@ -393,16 +393,18 @@ function hit(x,z,r){for(const c of CR){const nx=Math.max(c[0],Math.min(x,c[2])),
 const me={x:X(240),z:Z(690),yaw:-Math.PI/2,pitch:0};
 const fly={p:V3(),yaw:0,pitch:0};                   // free camera of the top view: position and gaze, no pivot
 let mode='walk';const tw={t:1,p0:V3(),p1:V3(),q0:new THREE.Quaternion(),q1:new THREE.Quaternion(),done:null};
-const dollPos=()=>cam.aspect<1?V3(.01,25,6):V3(7.5,13.5,.01);
+let all=false;
+const dollPos=()=>all?(cam.aspect<1?V3(0,14,27):V3(-19,11.5,0)):cam.aspect<1?V3(.01,25,6):V3(7.5,13.5,.01), dollAim=()=>all?V3(0,4.6,0):V3(0,0,0);
+function flyHome(){const p=dollPos(),t=new THREE.PerspectiveCamera();t.position.copy(p);t.lookAt(dollAim());fade.to=0;
+  tween(p,t.quaternion,()=>{fly.p.copy(cam.position);const e=new THREE.Euler().setFromQuaternion(cam.quaternion,'YXZ');fly.yaw=e.y;fly.pitch=e.x})}
 function walkQuat(){return new THREE.Quaternion().setFromEuler(new THREE.Euler(me.pitch,me.yaw,0,'YXZ'))}
 function tween(p1,q1,done){tw.p0.copy(cam.position);tw.q0.copy(cam.quaternion);tw.p1.copy(p1);tw.q1.copy(q1);tw.t=0;tw.done=done}
-function setMode(m){if(m===mode&&m!=='tour')return;const from=mode;mode=m;ptr.clear();document.exitPointerLock?.();
+function setMode(m){if(m===mode&&m!=='tour')return;if(all&&m!=='doll')exitAll();const from=mode;mode=m;ptr.clear();document.exitPointerLock?.();
   $('bView').setAttribute('aria-pressed',String(m==='doll'));$('bView').innerHTML=m==='doll'?'Entra<span class="lg"> e cammina</span>':'<span class="lg">Vista dall’alto</span><span class="sm">Dall’alto</span>';
   $('bTour').innerHTML=m==='tour'?'&#9632; <span class="lg">Ferma tour</span><span class="sm">Stop</span>':'&#9654; <span class="lg">Avvia tour</span><span class="sm">Tour</span>';
   $('hint').textContent=m==='tour'?'Tour guidato in corso':coarse?'Un dito: guarda intorno · pizzica: avanti e indietro · due dita: sposta':m==='walk'?'Clicca nella scena, poi WASD e mouse per camminare. Esc per liberare il mouse':'Trascina: guarda intorno · rotella: avvicina · tasto destro: sposta · WASD: muoviti · Q/E: giù e su';
   $('hint').style.opacity=1;clearTimeout(setMode.h);setMode.h=setTimeout(()=>$('hint').style.opacity=0,5200);
-  if(m==='doll'){hideCard();const p=dollPos(),t=new THREE.PerspectiveCamera();t.position.copy(p);t.lookAt(0,0,0);fade.to=0;
-    tween(p,t.quaternion,()=>{fly.p.copy(cam.position);const e=new THREE.Euler().setFromQuaternion(cam.quaternion,'YXZ');fly.yaw=e.y;fly.pitch=e.x})}
+  if(m==='doll'){hideCard();flyHome()}
   else{ceil.visible=true;fade.to=1;if(m==='tour')tourStart();if(from==='doll'||m==='tour')tween(V3(me.x,EYE,me.z),walkQuat(),null)}}
 const fade={v:1,to:1};
 // tour: polyline through the doors; a third entry pauses in that room
@@ -440,13 +442,19 @@ buildFloor(0,GEO.floors[0]);buildFloor(1,GEO.floors[1]);
 let cur=2;
 function useFloor(k){const F=FL[k];CR=F.CR;CCIR=F.CCIR;ROOMS=F.ROOMS;floors=F.floors;ceil=F.ceil;deco=F.deco;TOUR=F.TOUR}
 useFloor(2);ROOT=scene;
-function setFloor(k){if(k===cur)return;if(mode==='tour'){hideCard();setMode('doll')}
-  FL[cur].g.visible=false;cur=k;useFloor(k);FL[k].g.visible=true;ceil.visible=fade.v>0;
-  const st=FL[k].start;me.x=X(st[0]);me.z=Z(st[1]);me.yaw=st[2];me.pitch=0;lastRoom=null;hideCard();
-  $('bFloor').innerHTML='Piano '+k+' &#9662;';document.querySelectorAll('#floorM button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.f===k)));
-  renderer.shadowMap.needsUpdate=true}
+// "all floors": the three floors stacked with a gap, seen from the front; picking one floor shows that floor alone
+const GAP=4.6;[0,1,2].forEach(k=>{FL[k].lights=[];FL[k].g.traverse(o=>{if(o.isPointLight)FL[k].lights.push(o)})});
+function layout(){[0,1,2].forEach(k=>{const F=FL[k];F.g.visible=all||k===cur;F.g.position.y=all?k*GAP:0;F.lights.forEach(l=>l.visible=!all);if(all)F.ceil.visible=false});
+  if(!all)ceil.visible=fade.v>0;renderer.shadowMap.needsUpdate=true}
+function label(){$('bFloor').innerHTML=(all?'<span class="lg">Tutti i piani</span><span class="sm">Tutti</span>':'<span class="lg">Piano </span><span class="sm">P</span>'+cur)+' &#9662;';
+  document.querySelectorAll('#floorM button').forEach(b=>b.setAttribute('aria-pressed',String(all?b.dataset.f==='all':+b.dataset.f===cur)))}
+function showAll(){all=true;layout();label();hideCard();if(mode==='doll')flyHome();else setMode('doll')}
+function exitAll(){all=false;layout();label()}
+function setFloor(k){all=false;if(k!==cur){if(mode==='tour'){hideCard();setMode('doll')}cur=k;useFloor(k);
+    const st=FL[k].start;me.x=X(st[0]);me.z=Z(st[1]);me.yaw=st[2];me.pitch=0;lastRoom=null;hideCard()}
+  layout();label();if(mode==='doll')flyHome()}
 function say(t,ms=3000){$('hint').textContent=t;$('hint').style.opacity=1;clearTimeout(setMode.h);setMode.h=setTimeout(()=>$('hint').style.opacity=0,ms)}
-const only2=()=>{if(cur===2)return false;say('Disponibile solo al piano 2, dove ci sono le tavole EA1 ed EA2');return true};
+const only2=()=>{if(cur===2&&!all)return false;say('Disponibile solo al piano 2, dove ci sono le tavole EA1 ed EA2');return true};
 const yawTo=(dx,dz)=>Math.atan2(-dx,-dz), angd=(a,b)=>{let d=(a-b)%(2*Math.PI);if(d>Math.PI)d-=2*Math.PI;if(d<-Math.PI)d+=2*Math.PI;return d};
 function tourStart(){tour.i=0;me.x=X(TOUR[0][0]);me.z=Z(TOUR[0][1]);me.pitch=0;{const v=ROOMS[TOUR[0][2]].views[0];me.yaw=yawTo(X(v[0])-me.x,Z(v[1])-me.z)}tourPause(TOUR[0][2])}
 const VIEW_T=1.9;function tourPause(k){tour.pause=.6+VIEW_T*ROOMS[k].views.length;tour.room=k;tour.sweep=0;showCard(k)}
@@ -479,7 +487,11 @@ el.addEventListener('pointerdown',e=>{if(mode==='tour'||tw.t<1||document.pointer
 el.addEventListener('pointermove',e=>{const p=ptr.get(e.pointerId);if(!p)return;const dx=e.clientX-p[0],dy=e.clientY-p[1];p[0]=e.clientX;p[1]=e.clientY;
   if(ptr.size===1){p[2]===2?slide(dx,dy):look(dx,dy)}
   else if(ptr.size===2){const [a,b]=[...ptr.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]),mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;
-    if(pinch){dolly((d-pinch[0])*.0045,mx,my);slide(mx-pinch[1],my-pinch[2])}pinch=[d,mx,my]}});
+    const ang=Math.atan2(b[1]-a[1],b[0]-a[0]);
+    if(pinch){dolly((d-pinch[0])*.0045,mx,my);slide(mx-pinch[1],my-pinch[2]);let da=ang-pinch[3];if(da>Math.PI)da-=2*Math.PI;if(da<-Math.PI)da+=2*Math.PI;
+      // looking steeply down the plan turns with the fingers, like a map; otherwise the camera itself turns the way the fingers turn
+      const o=mode==='doll'?fly:me;o.yaw+=(mode==='doll'&&fly.pitch<-.75?1:-1)*da}
+    pinch=[d,mx,my,ang]}});
 const ptrUp=e=>{ptr.delete(e.pointerId);pinch=null};el.addEventListener('pointerup',ptrUp);el.addEventListener('pointercancel',ptrUp);
 el.addEventListener('wheel',e=>{e.preventDefault();if(tw.t>=1)dolly(-Math.sign(e.deltaY)*.22,e.clientX,e.clientY)},{passive:false});
 let lastRoom=null;
@@ -495,7 +507,7 @@ function walkStep(dt){let f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.Arrow
 const closeMenus=()=>document.querySelectorAll('.dd').forEach(d=>{d.lastElementChild.hidden=true;d.firstElementChild.setAttribute('aria-expanded','false')});
 document.querySelectorAll('.dd').forEach(d=>d.firstElementChild.onclick=()=>{const m=d.lastElementChild,open=m.hidden;closeMenus();m.hidden=!open;d.firstElementChild.setAttribute('aria-expanded',String(open))});
 addEventListener('pointerdown',e=>{if(!e.target.closest('.dd'))closeMenus()});$('layers').addEventListener('click',closeMenus);
-document.querySelectorAll('#floorM button').forEach(b=>b.onclick=()=>{closeMenus();const k=+b.dataset.f;if(k===cur)return;$('veil').style.opacity=1;setTimeout(()=>{setFloor(k);$('veil').style.opacity=0},290)});
+document.querySelectorAll('#floorM button').forEach(b=>b.onclick=()=>{closeMenus();const f=b.dataset.f;if(f==='all'?all:(!all&&+f===cur))return;$('veil').style.opacity=1;setTimeout(()=>{f==='all'?showAll():setFloor(+f);$('veil').style.opacity=0},290)});
 Object.entries(STYLES).forEach(([k,s])=>{const b=document.createElement('button');b.textContent=s.n;b.dataset.k=k;b.setAttribute('role','option');b.onclick=()=>{closeMenus();if(k===styleKey)return;$('veil').style.opacity=1;setTimeout(()=>{applyStyle(k);$('veil').style.opacity=0},290)};$('styles').appendChild(b)});
 $('bTour').onclick=()=>{if(mode==='tour'){hideCard();setMode('walk')}else setMode('tour')};
 $('bView').onclick=()=>setMode(mode==='doll'?'walk':'doll');
@@ -519,12 +531,12 @@ function renderVerify(){const worst=Math.max(...chk.dims.map(d=>Math.abs(d.delta
   $('vDoors').textContent=GEO.doors.map(d=>`${d[7]} ${Math.round(Math.max(d[2]-d[0],d[3]-d[1])*GEO.CM)} cm`).join(' · ')}
 function renderRun(){$('vRun').innerHTML=`Percorsi dei tour, urti contro muri o arredi: ${[0,1,2].map(k=>`piano ${k} <b class="${badAll[k].length?'bad':'ok'}">${badAll[k].length}</b>`).join(' · ')}.<br>Fluidità misurata ora: <b>${fps?Math.round(fps):'…'} fps</b>.`}
 renderVerify();
-window.__check={scene,M,tour,fly,cam,pathBad,badAll,setFloor,get cur(){return cur},get fps(){return fps},rooms:Object.fromEntries(Object.entries(ROOMS).map(([k,r])=>[k,+r.m2.toFixed(2)])),hit,me,setMode,meshes:()=>{let n=0;scene.traverse(o=>o.isMesh&&n++);return n}};
+window.__check={scene,M,tour,fly,cam,pathBad,badAll,setFloor,showAll,get cur(){return cur},get all(){return all},get fps(){return fps},rooms:Object.fromEntries(Object.entries(ROOMS).map(([k,r])=>[k,+r.m2.toFixed(2)])),hit,me,setMode,meshes:()=>{let n=0;scene.traverse(o=>o.isMesh&&n++);return n}};
 
 // ---------- loop ----------
 function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix()}
 addEventListener('resize',resize);resize();applyStyle('nordico');
-setFloor(0);setMode('doll');cam.position.copy(tw.p1);cam.quaternion.copy(tw.q1);tw.t=1;tw.done();tw.done=null;fade.v=fade.to=0;M.ceil.opacity=0;ceil.visible=false;
+setFloor(0);showAll();cam.position.copy(tw.p1);cam.quaternion.copy(tw.q1);tw.t=1;tw.done();tw.done=null;fade.v=fade.to=0;M.ceil.opacity=0;ceil.visible=false;
 const clock=new THREE.Clock(),ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;let acc=0,frames=0;
 function frame(dt,draw=true){
   acc+=dt;frames++;if(acc>=1){fps=frames/acc;acc=frames=0;if(!$('verify').hidden)renderRun()}
@@ -534,7 +546,7 @@ function frame(dt,draw=true){
     cam.position.lerpVectors(tw.p0,tw.p1,k);cam.quaternion.slerpQuaternions(tw.q0,tw.q1,k);if(mode==='tour')tourStep(dt);if(tw.t===1&&tw.done){tw.done();tw.done=null}}
   else if(mode==='doll'){const f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),r=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0),u=(keys.KeyE?1:0)-(keys.KeyQ?1:0);
     if(f||r||u){const v=Math.max(1.5,fly.p.y*.7)*dt;fly.p.addScaledVector(cam.getWorldDirection(V3()),f*v).addScaledVector(V3(1,0,0).applyQuaternion(cam.quaternion),r*v);fly.p.y+=u*v}
-    fly.p.set(Math.max(-22,Math.min(22,fly.p.x)),Math.max(.5,Math.min(40,fly.p.y)),Math.max(-26,Math.min(26,fly.p.z)));cam.position.copy(fly.p);cam.rotation.set(fly.pitch,fly.yaw,0)}
+    fly.p.set(Math.max(-45,Math.min(45,fly.p.x)),Math.max(.5,Math.min(45,fly.p.y)),Math.max(-45,Math.min(45,fly.p.z)));cam.position.copy(fly.p);cam.rotation.set(fly.pitch,fly.yaw,0)}
   else{if(mode==='tour')tourStep(dt);else walkStep(dt);cam.position.set(me.x,EYE,me.z);cam.quaternion.copy(walkQuat())}
   const fv=mode==='tour'&&tour.pause>0?76:68;if(Math.abs(cam.fov-fv)>.05){cam.fov+=(fv-cam.fov)*Math.min(1,dt*2);cam.updateProjectionMatrix()}
   if(draw)renderer.render(scene,cam)}

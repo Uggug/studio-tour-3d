@@ -478,7 +478,8 @@ const el=renderer.domElement,ptr=new Map();let pinch=null;
 el.addEventListener('contextmenu',e=>e.preventDefault());
 el.addEventListener('click',()=>{if(mode==='walk'&&!coarse&&document.pointerLockElement!==el){try{const p=el.requestPointerLock();p&&p.catch&&p.catch(()=>{})}catch(e){}}});
 addEventListener('mousemove',e=>{if(mode==='walk'&&document.pointerLockElement===el){me.yaw-=e.movementX*.0022;me.pitch=Math.max(-1.2,Math.min(1.2,me.pitch-e.movementY*.0022))}});
-function look(dx,dy){const o=mode==='doll'?fly:me;o.yaw-=dx*.005;o.pitch=Math.max(-1.5,Math.min(1.2,o.pitch-dy*.005))}
+// horizontal drag grabs the scene: drag left and the building turns left, following the pointer
+function look(dx,dy){const o=mode==='doll'?fly:me;o.yaw+=dx*.005;o.pitch=Math.max(-1.5,Math.min(1.2,o.pitch-dy*.005))}
 function slide(dx,dy){if(mode!=='doll')return;const k=Math.max(.6,fly.p.y)*.0022;fly.p.addScaledVector(V3(1,0,0).applyQuaternion(cam.quaternion),-dx*k).addScaledVector(V3(0,1,0).applyQuaternion(cam.quaternion),dy*k)}
 function dolly(a,cx,cy){
   if(mode==='doll'){const r=el.getBoundingClientRect();ray.setFromCamera(new THREE.Vector2((cx-r.left)/r.width*2-1,-(cy-r.top)/r.height*2+1),cam);fly.p.addScaledVector(ray.ray.direction,a*Math.max(.8,fly.p.y)*.9)}
@@ -493,7 +494,8 @@ el.addEventListener('pointermove',e=>{const p=ptr.get(e.pointerId);if(!p)return;
       const o=mode==='doll'?fly:me;o.yaw+=(mode==='doll'&&fly.pitch<-.75?1:-1)*da}
     pinch=[d,mx,my,ang]}});
 const ptrUp=e=>{ptr.delete(e.pointerId);pinch=null};el.addEventListener('pointerup',ptrUp);el.addEventListener('pointercancel',ptrUp);
-el.addEventListener('wheel',e=>{e.preventDefault();if(tw.t>=1)dolly(-Math.sign(e.deltaY)*.22,e.clientX,e.clientY)},{passive:false});
+el.addEventListener('wheel',e=>{e.preventDefault();// proportional to the scroll amount (one mouse notch is about 100 px), capped so a fast flick cannot jump
+  if(tw.t>=1)dolly(-Math.max(-.15,Math.min(.15,e.deltaY*(e.deltaMode===1?33:1)*.0008)),e.clientX,e.clientY)},{passive:false});
 let lastRoom=null;
 function walkStep(dt){let f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),s=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
   const l=Math.hypot(f,s);if(l>1){f/=l;s/=l}if(l>.02){const v=(keys.ShiftLeft?3.2:1.9)*dt,sy=Math.sin(me.yaw),cy=Math.cos(me.yaw),dx=(-sy*f+cy*s)*v,dz=(-cy*f-sy*s)*v;

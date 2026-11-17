@@ -478,8 +478,8 @@ const el=renderer.domElement,ptr=new Map();let pinch=null;
 el.addEventListener('contextmenu',e=>e.preventDefault());
 el.addEventListener('click',()=>{if(mode==='walk'&&!coarse&&document.pointerLockElement!==el){try{const p=el.requestPointerLock();p&&p.catch&&p.catch(()=>{})}catch(e){}}});
 addEventListener('mousemove',e=>{if(mode==='walk'&&document.pointerLockElement===el){me.yaw-=e.movementX*.0022;me.pitch=Math.max(-1.2,Math.min(1.2,me.pitch-e.movementY*.0022))}});
-// horizontal drag grabs the scene: drag left and the building turns left, following the pointer
-function look(dx,dy){const o=mode==='doll'?fly:me;o.yaw+=dx*.005;o.pitch=Math.max(-1.5,Math.min(1.2,o.pitch-dy*.005))}
+// drag grabs the scene: the building follows the pointer, left/right and up/down
+function look(dx,dy){const o=mode==='doll'?fly:me;o.yaw+=dx*.005;o.pitch=Math.max(-1.5,Math.min(1.2,o.pitch+dy*.005))}
 function slide(dx,dy){if(mode!=='doll')return;const k=Math.max(.6,fly.p.y)*.0022;fly.p.addScaledVector(V3(1,0,0).applyQuaternion(cam.quaternion),-dx*k).addScaledVector(V3(0,1,0).applyQuaternion(cam.quaternion),dy*k)}
 function dolly(a,cx,cy){
   if(mode==='doll'){const r=el.getBoundingClientRect();ray.setFromCamera(new THREE.Vector2((cx-r.left)/r.width*2-1,-(cy-r.top)/r.height*2+1),cam);fly.p.addScaledVector(ray.ray.direction,a*Math.max(.8,fly.p.y)*.9)}
